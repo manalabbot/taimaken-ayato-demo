@@ -1,0 +1,6 @@
+﻿level,name,description,player_image,enemy_buff,special_event
+1,完全装備,退魔師の正装を纏った状態,👘,0,
+2,上着脱衣,戦闘で熱くなり上着を脱いだ状態,🎽,5,
+3,軽装,動きやすさ重視で軽装になった状態,👙,10,
+4,肌露出,かなり肌が露出した危険な状態,💋,15,special_dialogue
+5,限界露出,ほぼ限界まで露出した絶体絶命状態,❤️,20,ending_branch

@@ -1,0 +1,4 @@
+﻿event_id,trigger_condition,event_name,description,next_action
+special_defeat_1,enemy_special,屈辱の刻印,限界露出での敗北により特殊な刻印を受ける,show_defeat_scene
+special_defeat_2,enemy_special + exposure_5,完全屈服,最大露出度での完全敗北,show_submission_scene
+normal_defeat,enemy,通常敗北,通常の敗北,restart_battle

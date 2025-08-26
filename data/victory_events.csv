@@ -1,0 +1,5 @@
+﻿event_id,victory_type,title,description,next_action,unlock_condition
+normal_victory,player,完全勝利,彩人を見事に退けた！通常の勝利,show_victory_scene,none
+perfect_victory,player,完璧勝利,無傷で彩人を圧倒！,show_perfect_scene,player_hp_80_above
+comeback_victory,player_special,奇跡の逆転,限界状態からの大逆転勝利！,show_comeback_scene,exposure_level_5
+low_exposure_victory,player,清廉勝利,服装を乱されることなく勝利,show_pure_scene,exposure_level_1
