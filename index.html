@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>退魔拳 - 彩人戦体験版</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;700&family=Cinzel:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/battle.css">
 </head>
 <body>
@@ -40,8 +43,6 @@
                 <div class="character-portrait">
                     <div class="character-image" id="player-image">👘</div>
                     <div class="character-name">鈴音</div>
-                </div>
-                <div class="player-status">
                     <div class="exposure-info">
                         <div class="exposure">
                             露出: <span id="exposure-dots">○○○○</span>
@@ -51,17 +52,20 @@
                             <span id="exposure-desc">退魔師の正装を纏った状態</span>
                         </div>
                     </div>
-                    <div class="tell-info">
-                        <div id="current-tell" class="tell-display">仕草を観察中...</div>
-                        <div id="provoke-effect" class="provoke-display"></div>
-                    </div>
                 </div>
             </div>
 
             <!-- 中央：VS表示 -->
             <div class="versus-section">
-                <div class="vs-text">VS</div>
                 <div class="dominance">主導権<br><span id="dominance-dots">○○○</span></div>
+                <div class="vs-text">VS</div>
+                <!-- 戦闘ログ -->
+                <div class="battle-log-compact">
+                    <div class="log-header">退魔録</div>
+                    <div id="log-content" class="log-content-compact">
+                        <p class="log-entry system">彩人との心理戦開始...</p>
+                    </div>
+                </div>
             </div>
 
             <!-- 右側：彩人 -->
@@ -69,11 +73,9 @@
                 <div class="character-portrait">
                     <div class="character-image">👻</div>
                     <div class="character-name">彩人</div>
-                </div>
-                <div class="enemy-status">
-                    <div class="enemy-info">
-                        <p>幽霊タイプ: 色男</p>
-                        <p>危険度: ★★★☆☆</p>
+                    <div class="tell-info">
+                        <div id="current-tell" class="tell-display">仕草を観察中...</div>
+                        <div id="provoke-effect" class="provoke-display"></div>
                     </div>
                 </div>
             </div>
@@ -115,13 +117,6 @@
             </button>
         </div>
 
-        <!-- ログ -->
-        <div class="battle-log">
-            <div class="log-header">戦闘ログ</div>
-            <div id="log-content" class="log-content">
-                <p class="log-entry system">彩人との心理戦開始...</p>
-            </div>
-        </div>
 
         <!-- 結果モーダル -->
         <div id="result-modal" class="modal hidden">

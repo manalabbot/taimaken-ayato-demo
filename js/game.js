@@ -57,7 +57,7 @@ class GameController {
             rewindCount: document.getElementById('rewind-count'),
             
             // ログ
-            logContent: document.getElementById('log-content'),
+            logContent: document.querySelector('.log-content-compact') || document.getElementById('log-content'),
             
             // モーダル
             resultModal: document.getElementById('result-modal'),
@@ -113,9 +113,11 @@ class GameController {
 
     // 手を選択
     selectHand(hand) {
+        console.log('手選択:', hand);
         if (this.isRevealPhase) return;
         
         const success = window.battleSystem.selectPlayerHand(hand);
+        console.log('手選択結果:', success);
         if (!success) return;
 
         // UIを更新
@@ -160,6 +162,7 @@ class GameController {
     // 公開
     reveal() {
         const state = window.battleSystem.getState();
+        console.log('公開時の状態:', state);
         if (!state.selectedPlayerHand) {
             this.addLog('先に手を選択してください！', 'system');
             return;
@@ -283,6 +286,7 @@ class GameController {
         const tell = window.battleSystem.startNewRound();
         
         // 仕草を表示
+        console.log('新しい仕草:', tell);
         if (tell) {
             const handNames = {
                 stone: '石拳',
@@ -324,6 +328,7 @@ class GameController {
         
         // 服装変化の表示更新
         const exposureData = window.csvLoader.getExposureLevel(state.exposureLevel);
+        console.log('露出レベル更新:', state.exposureLevel, exposureData);
         if (exposureData) {
             this.elements.playerImage.textContent = exposureData.player_image;
             this.elements.exposureName.textContent = exposureData.name;
