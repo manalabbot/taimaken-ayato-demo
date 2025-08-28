@@ -7,6 +7,7 @@ class BattleSystem {
             enemyHP: 100,
             playerWins: 0,
             enemyWins: 0,
+            drawCount: 0,
             exposureLevel: 1,
             dominanceLevel: 0,
             provokeCount: 3,
@@ -48,6 +49,7 @@ class BattleSystem {
             enemyHP: this.config.MAX_HP || 100,
             playerWins: 0,
             enemyWins: 0,
+            drawCount: 0,
             exposureLevel: 1,
             dominanceLevel: 0,
             provokeCount: this.config.PROVOKE_USES || 3,
@@ -225,7 +227,7 @@ class BattleSystem {
             case 'enemy_win':
                 this.gameState.playerHP = Math.max(0, this.gameState.playerHP - damage);
                 this.gameState.enemyWins++;
-                this.gameState.exposureLevel = Math.min(5, this.gameState.exposureLevel + 1);
+                // this.gameState.exposureLevel = Math.min(5, this.gameState.exposureLevel + 1); // POVで手動変更するためコメントアウト
                 this.gameState.dominanceLevel = Math.max(0, this.gameState.dominanceLevel - 1);
                 this.gameState.lastEnemyWin = enemyHand;
                 roundResult.damage = damage;
@@ -233,6 +235,8 @@ class BattleSystem {
                 break;
                 
             case 'draw':
+                this.gameState.drawCount++;
+                console.log('引き分け発生！現在の引き分け数:', this.gameState.drawCount);
                 roundResult.message = `引き分け！両者${this.handNames[playerHand]}！`;
                 break;
         }
@@ -385,9 +389,470 @@ class BattleSystem {
 
     // 現在の状態を取得
     getState() {
+        console.log('BattleSystem getState - drawCount:', this.gameState.drawCount);
         return { ...this.gameState };
+    }
+    
+    // 露出レベルを設定（POVシステムから使用）
+    setExposureLevel(level) {
+        this.gameState.exposureLevel = level;
+        console.log('BattleSystem - 露出レベル設定:', level);
+    }
+
+    // 幽霊を切り替える
+    switchGhost(ghostId) {
+        let ghostData = null;
+        if (ghostId === 'kurinosuke') {
+            ghostData = window.csvLoader.getKurinosukeData();
+        } else if (ghostId === 'ayato') {
+            ghostData = window.csvLoader.getAyatoData();
+        }
+        
+        if (ghostData) {
+            this.enemyData = ghostData;
+            console.log(`幽霊を${ghostData.name}に切り替えました`);
+        } else {
+            console.error('幽霊データが見つかりません:', ghostId);
+        }
     }
 }
 
 // グローバル変数として公開
 window.battleSystem = new BattleSystem();
+
+// POV演出システム
+class POVSystem {
+    constructor() {
+        this.currentPOV = 'suzune'; // suzune, ayato, tension
+        this.isTransitioning = false;
+        this.battleScreen = document.querySelector('.battle-screen');
+        this.povIndicator = document.getElementById('pov-indicator');
+        this.povOverlay = document.getElementById('pov-overlay');
+        this.mindText = document.getElementById('mind-text');
+        
+        this.povTexts = {
+            suzune: '鈴音の視点',
+            ayato: '彩人の視点', 
+            tension: '緊張の瞬間'
+        };
+        
+        this.mindTexts = {
+            provoke: {
+                success: '（こいつ、挑発にのってきた...！）',
+                fail: '（挑発が効かない...警戒されている）'
+            },
+            fake: '（フフフ...この仕草に騙されるがよい...）',
+            crisis_ayato: '（まずい...このままでは負けてしまう...！）',
+            crisis_suzune: '（集中...彩人の動きを読まなければ...）',
+            final_round: '（これで最後...全てが決まる）'
+        };
+    }
+
+    // POV切り替えメイン関数
+    changePOV(newPOV, options = {}) {
+        if (this.isTransitioning || this.currentPOV === newPOV) return;
+        
+        this.isTransitioning = true;
+        const duration = options.duration || 1200;
+        const showMindText = options.mindText;
+        
+        // 切り替え開始演出
+        this.battleScreen.classList.add('pov-transitioning');
+        if (options.showOverlay) {
+            this.povOverlay.classList.add('active');
+        }
+        
+        setTimeout(() => {
+            // POVクラス変更
+            this.battleScreen.classList.remove(`pov-${this.currentPOV}`);
+            this.battleScreen.classList.add(`pov-${newPOV}`);
+            this.currentPOV = newPOV;
+            
+            // インジケーター更新
+            this.updatePOVIndicator(newPOV);
+            
+            // 心理テキスト表示
+            if (showMindText) {
+                this.showMindText(showMindText);
+            }
+        }, duration / 2);
+        
+        setTimeout(() => {
+            // 切り替え終了
+            this.battleScreen.classList.remove('pov-transitioning');
+            this.povOverlay.classList.remove('active');
+            this.isTransitioning = false;
+        }, duration);
+    }
+
+    // POVインジケーター更新
+    updatePOVIndicator(pov) {
+        this.povIndicator.textContent = this.povTexts[pov];
+        this.povIndicator.classList.remove('visible');
+        
+        setTimeout(() => {
+            this.povIndicator.classList.add('visible');
+        }, 100);
+        
+        setTimeout(() => {
+            this.povIndicator.classList.remove('visible');
+        }, 3000);
+    }
+
+    // 心理描写テキスト表示
+    showMindText(textKey, customText = null) {
+        let text = customText;
+        
+        if (!text) {
+            // ネストしたキーへのアクセス対応 (例: 'provoke.success')
+            if (textKey.includes('.')) {
+                const keys = textKey.split('.');
+                text = this.mindTexts[keys[0]][keys[1]];
+            } else {
+                text = this.mindTexts[textKey];
+            }
+        }
+        
+        if (!text) return;
+        
+        this.mindText.textContent = text;
+        this.mindText.classList.add('show');
+        
+        setTimeout(() => {
+            this.mindText.classList.remove('show');
+        }, 3000);
+    }
+
+    // 自動POV判定と切り替え
+    autoChangePOV(gameState, event) {
+        const { round, playerHP, enemyHP, exposureLevel } = gameState;
+        
+        switch (event) {
+            case 'provoke_success':
+                this.changePOV('ayato', {
+                    duration: 1000,
+                    mindText: 'provoke.success',
+                    showOverlay: true
+                });
+                break;
+                
+            case 'provoke_fail':
+                this.changePOV('ayato', {
+                    duration: 800,
+                    mindText: 'provoke.fail'
+                });
+                break;
+                
+            case 'fake_tell':
+                this.changePOV('ayato', {
+                    duration: 1200,
+                    mindText: 'fake',
+                    showOverlay: true
+                });
+                setTimeout(() => this.changePOV('suzune'), 3500);
+                break;
+                
+            case 'ayato_crisis':
+                if (enemyHP <= 30) {
+                    this.changePOV('ayato', {
+                        duration: 1000,
+                        mindText: 'crisis_ayato'
+                    });
+                }
+                break;
+                
+            case 'suzune_crisis':
+                if (playerHP <= 30) {
+                    this.changePOV('suzune', {
+                        duration: 800,
+                        mindText: 'crisis_suzune'
+                    });
+                }
+                break;
+                
+            case 'final_round':
+                if (round === 10) {
+                    this.changePOV('tension', {
+                        duration: 1500,
+                        mindText: 'final_round',
+                        showOverlay: true
+                    });
+                }
+                break;
+                
+            case 'exposure_change':
+                if (exposureLevel >= 3) {
+                    this.changePOV('tension', {
+                        duration: 1000,
+                        showOverlay: true
+                    });
+                    setTimeout(() => this.changePOV('suzune'), 2500);
+                }
+                break;
+                
+            case 'round_start':
+                // 通常視点に戻す（特殊条件でない限り）
+                if (this.currentPOV !== 'suzune' && round < 10) {
+                    setTimeout(() => this.changePOV('suzune'), 500);
+                }
+                break;
+        }
+    }
+
+    // デバッグ用：手動POV切り替え
+    debugChangePOV(pov) {
+        this.changePOV(pov, { duration: 800 });
+    }
+    
+    // 現在のPOV取得
+    getCurrentPOV() {
+        return this.currentPOV;
+    }
+}
+
+// POVシステムをグローバル変数として公開
+window.povSystem = new POVSystem();
+
+// 敗北時POV演出システム
+class DefeatPOVSystem {
+    constructor() {
+        this.isActive = false;
+        this.povMode = null;
+        this.ghostHand = null;
+        this.suzuneExpression = null;
+        this.povInstruction = null;
+        this.povExitBtn = null;
+        this.isInitialized = false;
+        
+        this.expressions = {
+            1: '困った顔',
+            2: '少し赤面',
+            3: '恥ずかしそう',
+            4: '涙目',
+            5: '項垂れ'
+        };
+    }
+    
+    // DOM要素を初期化
+    initializeDOM() {
+        if (this.isInitialized) return true;
+        
+        this.povMode = document.getElementById('pov-mode');
+        this.ghostHand = document.getElementById('ghost-hand');
+        this.suzuneExpression = document.getElementById('suzune-expression');
+        this.povInstruction = document.getElementById('pov-instruction');
+        this.povExitBtn = document.getElementById('pov-exit-btn');
+        
+        if (!this.povMode || !this.ghostHand || !this.suzuneExpression || !this.povInstruction || !this.povExitBtn) {
+            console.error('POV要素が見つかりません:', {
+                povMode: !!this.povMode,
+                ghostHand: !!this.ghostHand,
+                suzuneExpression: !!this.suzuneExpression,
+                povInstruction: !!this.povInstruction,
+                povExitBtn: !!this.povExitBtn
+            });
+            return false;
+        }
+        
+        this.setupEventListeners();
+        this.isInitialized = true;
+        console.log('POVシステムが正常に初期化されました');
+        return true;
+    }
+    
+    setupEventListeners() {
+        // 服のクリックエリア
+        const clothingArea = document.getElementById('clothing-click-area');
+        if (clothingArea) {
+            clothingArea.addEventListener('click', () => {
+                if (this.isActive) {
+                    this.onClothingClick();
+                }
+            });
+        }
+        
+        // 幽霊の手クリック（非推奨だが残しておく）
+        this.ghostHand.addEventListener('click', () => {
+            if (this.isActive) {
+                this.onHandClick();
+            }
+        });
+        
+        // 戻るボタン
+        this.povExitBtn.addEventListener('click', () => {
+            this.exitPOVMode();
+        });
+        
+        // ESCキーで終了
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isActive) {
+                this.exitPOVMode();
+            }
+        });
+    }
+    
+    // POV演出開始
+    enterPOVMode(currentExposureLevel = 1, nextExposureLevel = null) {
+        console.log('enterPOVMode呼び出し - 現在の露出レベル:', currentExposureLevel);
+        console.log('掴んだ後の露出レベル:', nextExposureLevel);
+        
+        // DOM要素を初期化
+        if (!this.initializeDOM()) {
+            console.error('DOM初期化に失敗しました');
+            return;
+        }
+        
+        console.log('DOM初期化成功');
+        
+        if (this.isActive) return;
+        
+        this.isActive = true;
+        this.currentExposureLevel = currentExposureLevel;
+        this.nextExposureLevel = nextExposureLevel || currentExposureLevel + 1;
+        
+        // 表情を現在のレベルで更新
+        this.suzuneExpression.textContent = this.expressions[currentExposureLevel] || this.expressions[1];
+        
+        // 服装を現在の露出レベルで表示（敗北前の状態）
+        this.updateClothing(currentExposureLevel);
+        
+        // POVモード表示
+        this.povMode.style.display = 'block';
+        this.povMode.classList.add('show');
+        
+        // 指示テキスト更新
+        this.povInstruction.textContent = '服をクリックして操作してください';
+        
+        console.log('POV演出開始 - 露出レベル:', exposureLevel);
+    }
+    
+    // 服装を露出レベルに応じて更新
+    updateClothing(exposureLevel) {
+        const clothing = document.getElementById('suzune-clothing');
+        if (!clothing) return;
+        
+        // CSVデータから露出レベルに応じた服装を取得
+        if (window.csvLoader) {
+            const exposureData = window.csvLoader.getExposureLevel(exposureLevel);
+            if (exposureData && exposureData.player_image) {
+                clothing.textContent = exposureData.player_image;
+                console.log('POV服装更新:', exposureLevel, '->', exposureData.player_image);
+            } else {
+                // フォールバック：レベルに応じたデフォルト服装
+                const defaultClothing = {
+                    1: '👘', // 完全装備
+                    2: '🎽', // 上着脱衣
+                    3: '👙', // 軽装
+                    4: '💋', // 肌露出
+                    5: '❤️'  // 限界露出
+                };
+                clothing.textContent = defaultClothing[exposureLevel] || '👘';
+                console.log('POV服装更新（フォールバック）:', exposureLevel, '->', defaultClothing[exposureLevel]);
+            }
+        } else {
+            console.error('csvLoaderが見つかりません');
+        }
+    }
+    
+    // 服クリック時の処理（推奨）
+    onClothingClick() {
+        if (!this.isActive || !this.initializeDOM()) return;
+        
+        // 手の絵文字を開いた手から掴んだ手に変更
+        const handEmoji = document.querySelector('.hand-emoji');
+        if (handEmoji) {
+            handEmoji.textContent = '👊';
+        }
+        
+        // 手が服を掴む動作
+        this.ghostHand.classList.add('grabbing');
+        
+        // 服の反応（引っ張られる感じ）
+        const clothing = document.getElementById('suzune-clothing');
+        if (clothing) {
+            clothing.style.transform = 'scale(0.98) rotate(-3deg) translateX(-2px)';
+            clothing.style.filter = 'brightness(0.95)';
+        }
+        
+        setTimeout(() => {
+            // 服を次の露出レベルに変更
+            this.updateClothing(this.nextExposureLevel);
+            
+            // 表情も次のレベルに更新
+            this.suzuneExpression.textContent = this.expressions[this.nextExposureLevel] || this.expressions[1];
+            
+            // バトルシステムの露出レベルを実際に更新
+            if (window.battleSystem) {
+                window.battleSystem.setExposureLevel(this.nextExposureLevel);
+                console.log('露出レベル更新:', this.currentExposureLevel, '→', this.nextExposureLevel);
+            }
+            
+            this.ghostHand.classList.remove('grabbing');
+            if (clothing) {
+                clothing.style.transform = 'scale(1) rotate(0deg) translateX(0px)';
+                clothing.style.filter = 'brightness(1)';
+            }
+            // 手を元に戻す
+            if (handEmoji) {
+                handEmoji.textContent = '✊';
+            }
+        }, 800);
+        
+        // 指示テキスト更新
+        this.povInstruction.textContent = '服を掴みました！戻るボタンを押してください';
+        
+        console.log('服がクリックされました - 掴む動作実行');
+    }
+    
+    // 手クリック時の処理（従来版）
+    onHandClick() {
+        if (!this.isActive || !this.initializeDOM()) return;
+        
+        // クリックアニメーション
+        this.ghostHand.classList.add('clicking');
+        setTimeout(() => {
+            this.ghostHand.classList.remove('clicking');
+        }, 300);
+        
+        // 指示テキスト更新
+        this.povInstruction.textContent = '操作完了！戻るボタンを押してください';
+        
+        console.log('幽霊の手がクリックされました');
+    }
+    
+    // POV演出終了
+    exitPOVMode() {
+        if (!this.isActive || !this.initializeDOM()) return;
+        
+        this.povMode.classList.remove('show');
+        this.povMode.classList.add('hide');
+        
+        setTimeout(() => {
+            this.povMode.style.display = 'none';
+            this.povMode.classList.remove('hide');
+            this.isActive = false;
+            
+            // POV終了後にpendingModalがあれば表示
+            if (window.gameController && window.gameController.pendingModal) {
+                window.gameController.elements.resultModal.classList.remove('hidden');
+                window.gameController.pendingModal = false;
+            }
+            
+            // 戦闘画面のUIを更新（露出レベル変更を反映）
+            if (window.gameController) {
+                window.gameController.updateUI();
+                console.log('POV終了 - 戦闘画面UI更新完了');
+            }
+            
+            console.log('POV演出終了');
+        }, 500);
+    }
+    
+    // 現在の状態を取得
+    isActivePOV() {
+        return this.isActive;
+    }
+}
+
+// 敗北時POVシステムをグローバル変数として公開
+window.defeatPOVSystem = new DefeatPOVSystem();

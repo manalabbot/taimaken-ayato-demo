@@ -11,6 +11,14 @@
 </head>
 <body>
     <div class="battle-screen">
+        <!-- 背景オーバーレイ -->
+        <div class="background-overlay"></div>
+        
+        <!-- POV演出システム -->
+        <div class="pov-overlay" id="pov-overlay"></div>
+        <div class="pov-indicator" id="pov-indicator">鈴音の視点</div>
+        <div class="mind-text" id="mind-text"></div>
+        
         <!-- ヘッダー: HP・ラウンド -->
         <div class="battle-header">
             <div class="player-hp">
@@ -24,6 +32,7 @@
                 <div class="round-number">Round <span id="current-round">1</span>/10</div>
                 <div class="win-count">
                     <span class="player-wins">鈴音: <span id="player-wins">0</span>勝</span>
+                    <span class="draw-count">引分: <span id="draw-count">0</span></span>
                     <span class="enemy-wins">彩人: <span id="enemy-wins">0</span>勝</span>
                 </div>
             </div>
@@ -41,7 +50,9 @@
             <!-- 左側：鈴音 -->
             <div class="player-section">
                 <div class="character-portrait">
-                    <div class="character-image" id="player-image">👘</div>
+                    <div class="character-image suzune-char" id="player-image">
+                        <span class="character-emoji">👘</span>
+                    </div>
                     <div class="character-name">鈴音</div>
                     <div class="exposure-info">
                         <div class="exposure">
@@ -57,21 +68,15 @@
 
             <!-- 中央：VS表示 -->
             <div class="versus-section">
-                <div class="dominance">主導権<br><span id="dominance-dots">○○○</span></div>
                 <div class="vs-text">VS</div>
-                <!-- 戦闘ログ -->
-                <div class="battle-log-compact">
-                    <div class="log-header">退魔録</div>
-                    <div id="log-content" class="log-content-compact">
-                        <p class="log-entry system">彩人との心理戦開始...</p>
-                    </div>
-                </div>
             </div>
 
             <!-- 右側：彩人 -->
             <div class="enemy-section">
                 <div class="character-portrait">
-                    <div class="character-image">👻</div>
+                    <div class="character-image ayato-char">
+                        <span class="character-emoji">👻</span>
+                    </div>
                     <div class="character-name">彩人</div>
                     <div class="tell-info">
                         <div id="current-tell" class="tell-display">仕草を観察中...</div>
@@ -81,40 +86,50 @@
             </div>
         </div>
 
-        <!-- 三手選択 -->
-        <div class="hand-selection-area">
-            <div class="hand-buttons">
-                <button class="hand-btn" id="stone" data-hand="stone">
-                    <span class="hand-icon">🪨</span>
-                    <span class="hand-name">石拳</span>
-                    <span class="hand-key">KEY: 1</span>
-                </button>
-                <button class="hand-btn" id="scissors" data-hand="scissors">
-                    <span class="hand-icon">✂️</span>
-                    <span class="hand-name">剪刀</span>
-                    <span class="hand-key">KEY: 2</span>
-                </button>
-                <button class="hand-btn" id="paper" data-hand="paper">
-                    <span class="hand-icon">🌊</span>
-                    <span class="hand-name">布掌</span>
-                    <span class="hand-key">KEY: 3</span>
-                </button>
+        <!-- 下部パネルコンテナ -->
+        <div class="bottom-panels">
+            <!-- 左パネル：操作 -->
+            <div class="left-panel">
+                <div class="hands-and-actions">
+                    <div class="hand-buttons-column">
+                        <button class="hand-btn" id="stone" data-hand="stone">
+                            <span class="hand-icon">🪨</span>
+                            <span class="hand-name">石拳</span>
+                            <span class="hand-key">KEY: 1</span>
+                        </button>
+                        <button class="hand-btn" id="scissors" data-hand="scissors">
+                            <span class="hand-icon">✂️</span>
+                            <span class="hand-name">剪刀</span>
+                            <span class="hand-key">KEY: 2</span>
+                        </button>
+                        <button class="hand-btn" id="paper" data-hand="paper">
+                            <span class="hand-icon">🌊</span>
+                            <span class="hand-name">布掌</span>
+                            <span class="hand-key">KEY: 3</span>
+                        </button>
+                    </div>
+                    <div class="action-buttons-column">
+                        <button id="reveal" class="action-btn reveal-btn primary">公開</button>
+                        <button id="provoke" class="action-btn provoke-btn">
+                            <span>P: 挑発</span>
+                            <span class="count">(<span id="provoke-count">3</span>)</span>
+                        </button>
+                        <button id="rewind" class="action-btn rewind-btn" style="display:none">
+                            <span>R: 読み直し</span>
+                            <span class="count">(<span id="rewind-count">1</span>)</span>
+                        </button>
+                    </div>
+                </div>
+                <div class="selected-hand-display" id="selected-hand-display">選択: なし</div>
             </div>
-            <div class="selected-hand-display" id="selected-hand-display">選択: なし</div>
-        </div>
 
-        <!-- アクション -->
-        <div class="action-buttons">
-            <button id="provoke" class="action-btn provoke-btn">
-                <span>P: 挑発</span>
-                <span class="count">(残<span id="provoke-count">3</span>)</span>
-            </button>
-            <button id="reveal" class="action-btn reveal-btn primary">公開</button>
-            <button id="rewind" class="action-btn rewind-btn" style="display:none">
-                <span>R: 読み直し</span>
-                <span class="count">(残<span id="rewind-count">1</span>)</span>
-                <div class="rewind-tooltip">手を変更可能<br>次敗北時+5ダメージ</div>
-            </button>
+            <!-- 右パネル：退魔録 -->
+            <div class="right-panel battle-log-compact">
+                <div class="log-header">退魔録</div>
+                <div id="log-content" class="log-content-compact">
+                    <p class="log-entry system">彩人との心理戦開始...</p>
+                </div>
+            </div>
         </div>
 
 
@@ -137,11 +152,43 @@
                         <span class="stat-value"><span id="fake-count">0</span>回</span>
                     </div>
                 </div>
-                <button id="restart" class="restart-btn">もう一度</button>
+                <div class="result-buttons">
+                    <button id="restart" class="restart-btn">もう一度</button>
+                    <button id="next-ghost" class="next-btn">次に進む</button>
+                </div>
                 <div class="demo-info">
                     <p>🎮 販売版では8体の幽霊＋フェイク最大20%の真の心理戦！</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- POV演出モード（非表示状態） -->
+    <div class="pov-mode" id="pov-mode" style="display: none;">
+        <!-- 暗い背景 -->
+        <div class="pov-background"></div>
+        
+        <!-- 鈴音の立ち絵 -->
+        <div class="suzune-portrait" id="suzune-portrait">
+            <div class="suzune-character" id="suzune-clothing">👘</div>
+            <div class="suzune-expression" id="suzune-expression">困った顔</div>
+            <!-- 服のクリック可能エリア -->
+            <div class="clothing-click-area" id="clothing-click-area"></div>
+        </div>
+        
+        <!-- 幽霊の手 -->
+        <div class="ghost-hand" id="ghost-hand">
+            <div class="hand-sprite">
+                <!-- 画像がある場合は画像を表示、なければ絵文字 -->
+                <img src="images/ghost_hand.png" alt="幽霊の手" class="hand-image" onerror="this.style.display='none'; this.nextElementSibling.style.display='inline';" style="display: block;">
+                <span class="hand-emoji" style="display: none;">✊</span>
+            </div>
+        </div>
+        
+        <!-- POV操作UI -->
+        <div class="pov-controls">
+            <div class="pov-instruction" id="pov-instruction">クリックしてください</div>
+            <button class="pov-exit-btn" id="pov-exit-btn">戻る</button>
         </div>
     </div>
 

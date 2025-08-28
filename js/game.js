@@ -4,6 +4,7 @@ class GameController {
         this.elements = {};
         this.currentEnemyHand = null;
         this.isRevealPhase = false;
+        this.currentGhost = 'ayato'; // 現在の幽霊を追跡
     }
     // ヘルパー関数
     getHandName(hand) {
@@ -27,11 +28,11 @@ class GameController {
             // ラウンド関連
             currentRound: document.getElementById('current-round'),
             playerWins: document.getElementById('player-wins'),
+            drawCount: document.getElementById('draw-count'),
             enemyWins: document.getElementById('enemy-wins'),
             
             // ゲージ関連
             exposureDots: document.getElementById('exposure-dots'),
-            dominanceDots: document.getElementById('dominance-dots'),
             
             // 服装表示関連
             playerImage: document.getElementById('player-image'),
@@ -66,7 +67,8 @@ class GameController {
             tellHits: document.getElementById('tell-hits'),
             provokeHits: document.getElementById('provoke-hits'),
             fakeCount: document.getElementById('fake-count'),
-            restartBtn: document.getElementById('restart')
+            restartBtn: document.getElementById('restart'),
+            nextGhostBtn: document.getElementById('next-ghost')
         };
     }
 
@@ -109,11 +111,33 @@ class GameController {
         this.elements.revealBtn.addEventListener('click', () => this.reveal());
         this.elements.rewindBtn.addEventListener('click', () => this.useRewind());
         this.elements.restartBtn.addEventListener('click', () => this.restartGame());
+        
+        // next-ghostボタンの存在確認とイベントリスナー追加
+        console.log('nextGhostBtn要素:', this.elements.nextGhostBtn);
+        if (this.elements.nextGhostBtn) {
+            this.elements.nextGhostBtn.addEventListener('click', () => {
+                console.log('次に進むボタンがクリックされました');
+                this.nextGhost();
+            });
+        } else {
+            console.error('next-ghostボタンが見つかりません');
+        }
+        
+        // テスト用POVボタン
+        const testPovBtn = document.getElementById('test-pov');
+        if (testPovBtn) {
+            testPovBtn.addEventListener('click', () => {
+                console.log('POVテストボタンがクリックされました');
+                window.defeatPOVSystem.enterPOVMode(2);
+            });
+        }
     }
 
     // 手を選択
     selectHand(hand) {
         console.log('手選択:', hand);
+        console.log('battleSystem:', window.battleSystem);
+        console.log('isRevealPhase:', this.isRevealPhase);
         if (this.isRevealPhase) return;
         
         const success = window.battleSystem.selectPlayerHand(hand);
@@ -149,11 +173,20 @@ class GameController {
                 this.elements.provokeEffect.textContent = result.message;
                 this.elements.provokeEffect.classList.add('active');
                 
+                // POV演出: 挑発成功
+                // window.povSystem.autoChangePOV(window.battleSystem.getState(), 'provoke_success');
+                
                 setTimeout(() => {
                     this.elements.provokeEffect.classList.remove('active');
                     this.elements.provokeEffect.textContent = '';
                 }, 3000);
+            } else {
+                // POV演出: 挑発失敗
+                // window.povSystem.autoChangePOV(window.battleSystem.getState(), 'provoke_fail');
             }
+        } else {
+            // 挑発使用不可時のログ
+            this.addLog(result.message, 'system');
         }
         
         this.updateUI();
@@ -245,6 +278,31 @@ class GameController {
             isRewind
         );
         
+        console.log('processRound結果:', result);
+        console.log('結果タイプ:', result.result);
+        console.log('引き分け判定:', result.result === 'draw');
+        if (result.result === 'enemy_win') {
+            console.log('このラウンドで敗北！プレイヤーHP:', result.newPlayerHP);
+            
+            // ラウンド敗北時にPOV演出を表示（少し遅らせる）
+            // 現在の露出レベルを保存（POVで表示用）
+            const currentExposureLevel = window.battleSystem.getState().exposureLevel;
+            const nextExposureLevel = Math.min(currentExposureLevel + 1, 5); // 最大レベル5
+            
+            setTimeout(() => {
+                if (window.defeatPOVSystem) {
+                    // 現在の状態でPOV開始、服を掴んだ時に次のレベルに変更
+                    window.defeatPOVSystem.enterPOVMode(currentExposureLevel, nextExposureLevel);
+                    console.log('POV開始 - 現在:', currentExposureLevel, '→掴んだ後:', nextExposureLevel);
+                } else {
+                    console.error('defeatPOVSystemが見つかりません');
+                }
+            }, 2000); // 2秒遅延
+        }
+        
+        const currentState = window.battleSystem.getState();
+        console.log('現在の状態 - HP:', currentState.playerHP, '勝数:', currentState.playerWins, '敗数:', currentState.enemyWins, 'ラウンド:', currentState.round);
+        
         // 結果をログに追加
         this.addLog(result.message, result.result === 'player_win' ? 'player-action' : 
                                     result.result === 'enemy_win' ? 'enemy-action' : 'system');
@@ -255,6 +313,8 @@ class GameController {
         
         if (result.wasFake) {
             this.addLog('フェイクだった！仕草とは違う手を出した！', 'special');
+            // POV演出: フェイク仕草発動
+            // window.povSystem.autoChangePOV(window.battleSystem.getState(), 'fake_tell');
         }
         
         // リセット
@@ -266,12 +326,18 @@ class GameController {
         });
         this.elements.selectedHandDisplay.textContent = '選択: なし';
         
-        // UI更新
-        this.updateUI();
+        // UI更新（一度だけ呼ぶ）
+        setTimeout(() => {
+            this.updateUI();
+        }, 100);
         
         // ゲーム終了判定
         const endResult = window.battleSystem.checkGameEnd();
+        console.log('ゲーム終了判定結果:', endResult);
+        console.log('endResult.ended:', endResult.ended);
+        console.log('endResult.winner:', endResult.winner);
         if (endResult.ended) {
+            console.log('ゲーム終了 - showResult呼び出し');
             this.showResult(endResult);
         } else {
             // 次のラウンドを開始
@@ -284,6 +350,16 @@ class GameController {
     // 新ラウンド開始
     startNewRound() {
         const tell = window.battleSystem.startNewRound();
+        const state = window.battleSystem.getState();
+        
+        // POV演出: ラウンド開始時の自動判定
+        // if (state.round === 10) {
+        //     // 最終ラウンド開始
+        //     window.povSystem.autoChangePOV(state, 'final_round');
+        // } else {
+        //     // 通常ラウンド開始
+        //     window.povSystem.autoChangePOV(state, 'round_start');
+        // }
         
         // 仕草を表示
         console.log('新しい仕草:', tell);
@@ -308,6 +384,8 @@ class GameController {
     // UI更新
     updateUI() {
         const state = window.battleSystem.getState();
+        console.log('GameController updateUI - 受信した状態:', state);
+        console.log('GameController updateUI - drawCount値:', state.drawCount);
         
         // HP更新
         this.elements.playerHP.textContent = state.playerHP;
@@ -315,11 +393,21 @@ class GameController {
         this.elements.playerHPBar.style.width = `${state.playerHP}%`;
         this.elements.enemyHPBar.style.width = `${state.enemyHP}%`;
         
+        // POV演出: HP危機時の判定
+        // if (state.playerHP <= 30 && state.playerHP > 0) {
+        //     window.povSystem.autoChangePOV(state, 'suzune_crisis');
+        // } else if (state.enemyHP <= 30 && state.enemyHP > 0) {
+        //     window.povSystem.autoChangePOV(state, 'ayato_crisis');
+        // }
+        
         // ラウンド情報更新（最大10で固定）
         const displayRound = Math.min(state.round, 10);
         this.elements.currentRound.textContent = displayRound;
         this.elements.playerWins.textContent = state.playerWins;
+        this.elements.drawCount.textContent = state.drawCount || 0;
         this.elements.enemyWins.textContent = state.enemyWins;
+        console.log('UI更新 - 引き分け数設定:', state.drawCount);
+        console.log('DOM要素に設定後の値:', this.elements.drawCount.textContent);
         
         // ゲージ更新
         const exposureDots = '●'.repeat(state.exposureLevel - 1) + 
@@ -330,7 +418,15 @@ class GameController {
         const exposureData = window.csvLoader.getExposureLevel(state.exposureLevel);
         console.log('露出レベル更新:', state.exposureLevel, exposureData);
         if (exposureData) {
-            this.elements.playerImage.textContent = exposureData.player_image;
+            // 画像対応：背景画像とクラスを更新
+            this.updatePlayerImage(state.exposureLevel);
+            
+            // 絵文字も更新（フォールバック用）
+            const emojiSpan = this.elements.playerImage.querySelector('.character-emoji');
+            if (emojiSpan) {
+                emojiSpan.textContent = exposureData.player_image;
+            }
+            
             this.elements.exposureName.textContent = exposureData.name;
             this.elements.exposureDesc.textContent = exposureData.description;
             
@@ -340,11 +436,13 @@ class GameController {
             } else if (exposureData.special_event === 'ending_branch' && state.exposureLevel === 5) {
                 this.addLog('限界露出！これ以上負けたら...', 'damage');
             }
+            
+            // POV演出: 露出度変化時
+            // if (state.exposureLevel >= 3) {
+            //     window.povSystem.autoChangePOV(state, 'exposure_change');
+            // }
         }
         
-        const dominanceDots = '◆'.repeat(state.dominanceLevel) + 
-                            '○'.repeat(3 - state.dominanceLevel);
-        this.elements.dominanceDots.textContent = dominanceDots;
         
         // アクションボタン更新
         this.elements.provokeCount.textContent = state.provokeCount;
@@ -378,26 +476,50 @@ class GameController {
 
     // 結果表示
     showResult(result) {
+        console.log('showResult呼び出し - result:', result);
+        console.log('result.winner:', result.winner);
+        console.log('result.reason:', result.reason);
         const state = window.battleSystem.getState();
         
         if (result.winner === 'player') {
+            console.log('プレイヤー勝利処理');
             // 勝利の種類を判定
             const victoryType = this.determineVictoryType(state);
             this.handlePlayerVictory(victoryType, state, result.reason);
         } else if (result.winner === 'player_special') {
+            console.log('プレイヤー特殊勝利処理');
             this.elements.resultTitle.textContent = '奇跡の勝利！';
             this.elements.resultText.textContent = `限界状態から逆転勝利！鈴音の気迫が彩人を圧倒した！`;
             this.addVictoryBonus('comeback_victory');
         } else if (result.winner === 'enemy') {
-            this.elements.resultTitle.textContent = '敗北...';
-            this.elements.resultText.textContent = `彩人に敗れた...（${result.reason}）`;
+            console.log('敵勝利処理 - POV演出開始予定');
+            // 敗北時POV演出を開始
+            const currentExposureLevel = state.exposureLevel;
+            console.log('敗北検出 - POV演出開始を試みます。露出レベル:', currentExposureLevel);
+            console.log('defeatPOVSystem確認:', window.defeatPOVSystem);
+            
+            // POV演出を先に表示してから結果を表示
+            if (window.defeatPOVSystem) {
+                console.log('POV演出開始を試みます...');
+                window.defeatPOVSystem.enterPOVMode(currentExposureLevel);
+            } else {
+                console.error('defeatPOVSystemが見つかりません');
+            }
+            
+            // 結果表示を少し遅らせる
+            setTimeout(() => {
+                this.elements.resultTitle.textContent = '敗北...';
+                this.elements.resultText.textContent = `彩人に敗れた...（${result.reason}）`;
+            }, 100);
         } else if (result.winner === 'enemy_special') {
+            console.log('敵特殊勝利処理');
             this.elements.resultTitle.textContent = '屈辱的敗北...';
             this.elements.resultText.textContent = `限界露出で敗北...鈴音は恥ずかしい格好のまま彩人に屈服した...`;
             
             // 屈辱的敗北の場合、特殊処理フラグを設定
             this.handleSpecialDefeat(state);
         } else {
+            console.log('引き分けまたは不明な結果:', result.winner);
             this.elements.resultTitle.textContent = '引き分け';
             this.elements.resultText.textContent = '勝負がつかなかった...';
         }
@@ -407,8 +529,13 @@ class GameController {
         this.elements.provokeHits.textContent = state.stats.provokeHits;
         this.elements.fakeCount.textContent = state.stats.fakeCount;
         
-        // モーダル表示
-        this.elements.resultModal.classList.remove('hidden');
+        // モーダル表示（POVモード中でなければ表示）
+        if (!window.defeatPOVSystem.isActivePOV()) {
+            this.elements.resultModal.classList.remove('hidden');
+        } else {
+            // POVモードが終了したらモーダルを表示するためのフラグをセット
+            this.pendingModal = true;
+        }
     }
 
     // 勝利タイプを判定
@@ -528,6 +655,76 @@ class GameController {
         this.updateUI();
         this.startNewRound();
     }
+    
+    // 次の幽霊に進む
+    nextGhost() {
+        console.log('nextGhost()メソッドが呼び出されました');
+        
+        // モーダルを閉じる
+        this.elements.resultModal.classList.add('hidden');
+        
+        this.currentGhost = 'kurinosuke';
+        console.log('幽霊を栗之助に変更:', this.currentGhost);
+        window.battleSystem.switchGhost('kurinosuke');
+        this.updateGhostUI();
+        
+        // ログをクリア
+        this.elements.logContent.innerHTML = '<p class="log-entry system">栗之助との心理戦開始...</p>';
+        
+        // 完全なゲーム状態リセット
+        window.battleSystem.resetGame();
+        
+        // ラウンド情報を強制的に1にリセット
+        window.battleSystem.gameState.round = 1;
+        window.battleSystem.gameState.playerWins = 0;
+        window.battleSystem.gameState.enemyWins = 0;
+        window.battleSystem.gameState.drawCount = 0;
+        
+        this.isRevealPhase = false;
+        this.currentEnemyHand = null;
+        
+        // UI初期化
+        this.elements.handButtons.forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        this.elements.selectedHandDisplay.textContent = '選択: なし';
+        this.elements.provokeEffect.classList.remove('active');
+        this.elements.rewindBtn.style.display = 'none';
+        this.elements.revealBtn.disabled = false;
+        
+        this.updateUI();
+        this.startNewRound();
+    }
+
+    // 幽霊UIを更新
+    updateGhostUI() {
+        let ghostData = null;
+        if (this.currentGhost === 'kurinosuke') {
+            ghostData = window.csvLoader.getKurinosukeData();
+        } else if (this.currentGhost === 'ayato') {
+            ghostData = window.csvLoader.getAyatoData();
+        }
+        
+        if (ghostData) {
+            // 敵の名前を更新（右側の幽霊の名前のみ）
+            const enemyNameElements = document.querySelectorAll('.enemy-section .character-name');
+            enemyNameElements.forEach(elem => {
+                elem.textContent = ghostData.name;
+            });
+            
+            // HP表示の名前を更新
+            const hpLabel = document.querySelector('.enemy-hp .hp-label');
+            if (hpLabel) {
+                hpLabel.textContent = `${ghostData.name}（幽霊）`;
+            }
+            
+            // 勝利カウントの名前を更新
+            const enemyWinsLabel = document.querySelector('.enemy-wins');
+            if (enemyWinsLabel) {
+                enemyWinsLabel.innerHTML = `${ghostData.name}: <span id="enemy-wins">0</span>勝`;
+            }
+        }
+    }
 
     // 初期化
     async init() {
@@ -542,18 +739,36 @@ class GameController {
         }
         
         // バトルシステム初期化
+        console.log('battleSystem初期化開始, csvData.config:', csvData.config);
         window.battleSystem.init(csvData.config);
+        console.log('battleSystem初期化完了');
         
         // ゲーム開始
         this.updateUI();
         this.startNewRound();
+        console.log('startNewRound完了');
         
         console.log('Game initialized successfully');
+    }
+    
+    // プレイヤー画像を露出レベルに応じて更新
+    updatePlayerImage(level) {
+        const playerImage = this.elements.playerImage;
+        if (!playerImage) return;
+        
+        // 既存のレベルクラスを削除
+        playerImage.classList.remove('lv1', 'lv2', 'lv3', 'lv4', 'lv5');
+        
+        // 新しいレベルクラスを追加
+        playerImage.classList.add(`lv${level}`);
+        
+        console.log('プレイヤー画像クラス更新:', `lv${level}`);
     }
 }
 
 // ページ読み込み完了時に初期化
 document.addEventListener('DOMContentLoaded', () => {
     const gameController = new GameController();
+    window.gameController = gameController;  // グローバル変数として公開
     gameController.init();
 });

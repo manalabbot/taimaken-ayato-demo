@@ -4,6 +4,7 @@ class CSVLoader {
         this.data = {
             config: {},
             ayato: {},
+            kurinosuke: {},
             tells: [],
             exposureLevels: []
         };
@@ -68,6 +69,12 @@ class CSVLoader {
                 this.data.ayato = ayatoData[0];
             }
 
+            // kurinosuke.csv読み込み
+            const kurinosukeData = await this.loadCSV('kurinosuke.csv');
+            if (kurinosukeData && kurinosukeData.length > 0) {
+                this.data.kurinosuke = kurinosukeData[0];
+            }
+
             // tells.csv読み込み
             const tellsData = await this.loadCSV('tells.csv');
             if (tellsData) {
@@ -97,6 +104,16 @@ class CSVLoader {
     // 彩人データを取得
     getAyatoData() {
         return this.data.ayato;
+    }
+
+    // 栗之助データを取得
+    getKurinosukeData() {
+        return this.data.kurinosuke;
+    }
+
+    // 幽霊データを取得（汎用）
+    getGhostData(ghostId) {
+        return this.data[ghostId] || null;
     }
 
     // 仕草データを取得
