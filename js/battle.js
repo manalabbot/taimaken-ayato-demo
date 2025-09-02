@@ -43,6 +43,9 @@ class BattleSystem {
 
     // ゲームリセット
     resetGame() {
+        // 栗之助用の追加状態
+        this.kurinosukeStoneCount = 0; // 石を出した回数
+        this.kurinosukeInStonePattern = false; // 石3回パターン中か
         this.gameState = {
             round: 1,
             playerHP: this.config.MAX_HP || 100,
@@ -78,8 +81,13 @@ class BattleSystem {
         this.gameState.provokedHand = null;
         this.gameState.wasFake = false;
         
-        // 仕草を選択
-        this.gameState.currentTell = window.csvLoader.getRandomTell();
+        // 栗之助の場合は仕草なし
+        if (this.enemyData && this.enemyData.id === 'kurinosuke') {
+            this.gameState.currentTell = null;
+        } else {
+            // 仕草を選択
+            this.gameState.currentTell = window.csvLoader.getRandomTell();
+        }
         
         return this.gameState.currentTell;
     }
@@ -93,6 +101,11 @@ class BattleSystem {
 
     // 挑発
     useProvoke() {
+        // 栗之助には挑発無効
+        if (this.enemyData && this.enemyData.id === 'kurinosuke') {
+            return { success: false, message: '栗之助は仕事一筋で挑発に動じない...' };
+        }
+        
         if (this.gameState.provokeCount <= 0) return { success: false, message: '挑発の使用回数がありません' };
         if (!this.gameState.lastEnemyWin) return { success: false, message: '前回の彩人の勝利手がありません' };
         if (this.gameState.isProvoked) return { success: false, message: 'すでに挑発済みです' };
@@ -120,6 +133,11 @@ class BattleSystem {
 
     // 彩人の手を決定
     decideEnemyHand() {
+        // 栗之助の特殊パターン処理
+        if (this.enemyData && this.enemyData.id === 'kurinosuke') {
+            return this.decideKurinosukeHand();
+        }
+        
         const ayatoData = window.csvLoader.getAyatoData();
         let probs = {
             stone: ayatoData.base_stone || 0.33,
@@ -188,6 +206,7 @@ class BattleSystem {
     }
 
     // ラウンド結果処理
+    // ラウンド結果処理
     processRoundResult(playerHand, enemyHand, isRewind = false) {
         const result = this.judgeRound(playerHand, enemyHand);
         let damage = this.config.BASE_DAMAGE || 20;
@@ -248,9 +267,16 @@ class BattleSystem {
             this.gameState.rewindPenalty = false;
         }
 
+        // ラウンド進行前のデバッグログ
+        console.log(`[ラウンド${this.gameState.round}終了] 結果: ${result}`);
+        console.log(`カウント状況 - 勝:${this.gameState.playerWins} 敗:${this.gameState.enemyWins} 引:${this.gameState.drawCount}`);
+        console.log(`合計: ${this.gameState.playerWins + this.gameState.enemyWins + this.gameState.drawCount} (ラウンド: ${this.gameState.round})`);
+
         // ラウンド進行
         this.gameState.round++;
         this.gameState.isRoundActive = false;
+        
+        console.log(`→ 次はラウンド${this.gameState.round}`);
 
         return roundResult;
     }
@@ -399,6 +425,64 @@ class BattleSystem {
         console.log('BattleSystem - 露出レベル設定:', level);
     }
 
+    // 栗之助の手を決定する特殊ロジック
+    // 栗之助の手を決定する特殊ロジック
+    decideKurinosukeHand() {
+        const kuriData = this.enemyData;
+        
+        // パニックモード（HP40%以下）
+        if (this.gameState.enemyHP <= 40) {
+            // 完全ランダム
+            const hands = ['stone', 'scissors', 'paper'];
+            return hands[Math.floor(Math.random() * hands.length)];
+        }
+        
+        // 最初の3回は必ず石
+        if (this.gameState.round <= 3) {
+            return 'stone';
+        }
+        
+        // 固定パターン処理（4回目以降の石3回パターン）
+        if (this.kurinosukeInStonePattern) {
+            // 石3回パターン中
+            if (this.kurinosukeStoneCount >= 3) {
+                // 3回出し終わった、パターン解除
+                this.kurinosukeInStonePattern = false;
+                this.kurinosukeStoneCount = 0;
+                // 通常の確率処理へ続く（下のコードへ）
+            } else {
+                // まだ3回に達していないので石を出す
+                this.kurinosukeStoneCount++;
+                return 'stone';
+            }
+        }
+        
+        // 通常の確率処理
+        let probs = {
+            stone: kuriData.base_stone || 0.80,
+            scissors: kuriData.base_scissors || 0.10,
+            paper: kuriData.base_paper || 0.10
+        };
+        
+        // 手を選択
+        const rand = Math.random();
+        let cumulative = 0;
+        
+        for (const [hand, prob] of Object.entries(probs)) {
+            cumulative += prob;
+            if (rand <= cumulative) {
+                // 石が出たら3回パターン開始
+                if (hand === 'stone' && !this.kurinosukeInStonePattern) {
+                    this.kurinosukeInStonePattern = true;
+                    this.kurinosukeStoneCount = 1;
+                }
+                return hand;
+            }
+        }
+        
+        return 'stone'; // フォールバック
+    }
+    
     // 幽霊を切り替える
     switchGhost(ghostId) {
         let ghostData = null;
@@ -410,6 +494,9 @@ class BattleSystem {
         
         if (ghostData) {
             this.enemyData = ghostData;
+            // 栗之助パターン用変数リセット
+            this.kurinosukeStoneCount = 0;
+            this.kurinosukeInStonePattern = false;
             console.log(`幽霊を${ghostData.name}に切り替えました`);
         } else {
             console.error('幽霊データが見つかりません:', ghostId);
@@ -836,12 +923,13 @@ class DefeatPOVSystem {
             if (window.gameController && window.gameController.pendingModal) {
                 window.gameController.elements.resultModal.classList.remove('hidden');
                 window.gameController.pendingModal = false;
-            }
-            
-            // 戦闘画面のUIを更新（露出レベル変更を反映）
-            if (window.gameController) {
-                window.gameController.updateUI();
-                console.log('POV終了 - 戦闘画面UI更新完了');
+                // モーダル表示時はUI更新をスキップ（ゲーム終了状態を維持）
+            } else {
+                // 戦闘画面のUIを更新（露出レベル変更を反映）
+                if (window.gameController) {
+                    window.gameController.updateUI();
+                    console.log('POV終了 - 戦闘画面UI更新完了');
+                }
             }
             
             console.log('POV演出終了');
@@ -853,6 +941,270 @@ class DefeatPOVSystem {
         return this.isActive;
     }
 }
+
+// 体験版終了画面システム
+class DemoEndingSystem {
+    constructor() {
+        this.isActive = false;
+        this.currentTextIndex = 0;
+        this.currentCharIndex = 0;
+        this.typewriterTimer = null;
+        this.isTyping = false;
+        
+        this.endingTexts = [
+            "『体験版をお楽しみいただけましたか？』",
+            "",
+            "製品版の淫霊たちは、もっと... 激しく求めてきます。",
+            "",
+            "地下階段を降りるにつれて、",
+            "独特な嗜好を持っている淫霊達が..",
+            "",
+            "個性あふれる特殊攻撃や癖を駆使して、",
+            "鈴音の「すべて」を奪おうとしてくるでしょう。",
+            "",
+            "そして最深部のボスに至っては、",
+            "負けた者を「永遠の愛玩人形」にすると言われています。",
+            "",
+            "果たして鈴音は、純潔...いえ、",
+            "淫術士としての誇りを守り抜けるのか。",
+            "",
+            "それとも、快楽...ではなく、",
+            "淫霊たちの虜になってしまうのか。",
+            "",
+            "『その結末は、あなた次第です』",
+            "",
+            "── 製品版で、完全決着 ──"
+        ];
+    }
+    
+    // 体験版終了画面を開始
+    startDemoEnding() {
+        console.log('体験版終了画面開始');
+        
+        const demoScreen = document.getElementById('demo-ending-screen');
+        const endingText = document.getElementById('ending-text');
+        const endingControls = document.getElementById('ending-controls');
+        
+        if (!demoScreen || !endingText) {
+            console.error('体験版終了画面の要素が見つかりません');
+            return;
+        }
+        
+        // 画面を表示
+        demoScreen.style.display = 'block';
+        this.isActive = true;
+        
+        // テキストクリア
+        endingText.innerHTML = '';
+        endingControls.style.display = 'none';
+        
+        // タイプライター開始
+        this.currentTextIndex = 0;
+        this.currentCharIndex = 0;
+        this.startTypewriter();
+        
+        // イベントリスナー設定
+        this.setupEventListeners();
+    }
+    
+    // タイプライター演出開始
+    startTypewriter() {
+        if (this.currentTextIndex >= this.endingTexts.length) {
+            // 全テキスト終了、ボタンを表示
+            this.showControls();
+            return;
+        }
+        
+        this.isTyping = true;
+        const currentText = this.endingTexts[this.currentTextIndex];
+        
+        if (currentText === "") {
+            // 空行の場合はすぐに次へ
+            this.addTextLine("");
+            this.currentTextIndex++;
+            setTimeout(() => this.startTypewriter(), 500);
+            return;
+        }
+        
+        this.currentCharIndex = 0;
+        this.typeNextChar();
+    }
+    
+    // 次の文字をタイプ
+    typeNextChar() {
+        if (!this.isActive) return;
+        
+        const currentText = this.endingTexts[this.currentTextIndex];
+        
+        if (this.currentCharIndex >= currentText.length) {
+            // 現在行終了
+            this.isTyping = false;
+            this.currentTextIndex++;
+            
+            // 次の行まで少し待機
+            setTimeout(() => {
+                this.startTypewriter();
+            }, 800);
+            return;
+        }
+        
+        // 現在の行を更新
+        const displayText = currentText.substring(0, this.currentCharIndex + 1);
+        this.updateCurrentLine(displayText);
+        
+        this.currentCharIndex++;
+        
+        // 次の文字まで待機（文字によって速度調整）
+        const char = currentText[this.currentCharIndex - 1];
+        let delay = 50; // 基本速度
+        
+        if (char === '。' || char === '！' || char === '？') {
+            delay = 300; // 句読点で長めの停止
+        } else if (char === '、' || char === '，') {
+            delay = 150; // 読点で短い停止
+        } else if (char === '『' || char === '』' || char === '「' || char === '」') {
+            delay = 100; // 括弧で少し停止
+        }
+        
+        this.typewriterTimer = setTimeout(() => this.typeNextChar(), delay);
+    }
+    
+    // 現在行を更新
+    updateCurrentLine(text) {
+        const endingText = document.getElementById('ending-text');
+        if (!endingText) return;
+        
+        // 既存の行を取得
+        const lines = endingText.querySelectorAll('.ending-line');
+        
+        if (lines.length === 0 || lines[lines.length - 1].classList.contains('complete')) {
+            // 新しい行を追加
+            this.addTextLine(text);
+        } else {
+            // 最後の行を更新
+            lines[lines.length - 1].textContent = text;
+        }
+    }
+    
+    // テキスト行を追加
+    addTextLine(text) {
+        const endingText = document.getElementById('ending-text');
+        if (!endingText) return;
+        
+        const line = document.createElement('div');
+        line.className = 'ending-line';
+        line.textContent = text;
+        
+        // 空行の場合は高さを調整
+        if (text === "") {
+            line.style.height = '0.5em';
+        }
+        
+        endingText.appendChild(line);
+        
+        // 行が完成した場合はマーク
+        if (!this.isTyping || this.currentCharIndex >= this.endingTexts[this.currentTextIndex].length) {
+            line.classList.add('complete');
+        }
+        
+        // スクロール調整
+        line.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    }
+    
+    // コントロールボタンを表示
+    showControls() {
+        const endingControls = document.getElementById('ending-controls');
+        if (endingControls) {
+            setTimeout(() => {
+                endingControls.style.display = 'block';
+                endingControls.style.opacity = '0';
+                endingControls.style.transition = 'opacity 1s ease-in';
+                
+                setTimeout(() => {
+                    endingControls.style.opacity = '1';
+                }, 100);
+            }, 1000);
+        }
+    }
+    
+    // イベントリスナー設定
+    setupEventListeners() {
+        const restartBtn = document.getElementById('restart-demo');
+        if (restartBtn) {
+            restartBtn.addEventListener('click', () => {
+                this.restartDemo();
+            });
+        }
+        
+        // スキップ機能（スペースキー）
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && this.isActive) {
+                this.skipTypewriter();
+            }
+        });
+        
+        // クリックでスキップ
+        const demoScreen = document.getElementById('demo-ending-screen');
+        if (demoScreen) {
+            demoScreen.addEventListener('click', () => {
+                if (this.isActive && this.isTyping) {
+                    this.skipTypewriter();
+                }
+            });
+        }
+    }
+    
+    // タイプライターをスキップ
+    skipTypewriter() {
+        if (!this.isTyping) return;
+        
+        // タイマーをクリア
+        if (this.typewriterTimer) {
+            clearTimeout(this.typewriterTimer);
+        }
+        
+        // 全テキストを即座に表示
+        const endingText = document.getElementById('ending-text');
+        if (endingText) {
+            endingText.innerHTML = '';
+            
+            this.endingTexts.forEach(text => {
+                this.addTextLine(text);
+            });
+        }
+        
+        this.isTyping = false;
+        this.showControls();
+    }
+    
+    // 体験版を再開
+    restartDemo() {
+        // 終了画面を隠す
+        const demoScreen = document.getElementById('demo-ending-screen');
+        if (demoScreen) {
+            demoScreen.style.display = 'none';
+        }
+        
+        this.isActive = false;
+        
+        // ゲームを最初から再開
+        if (window.gameController) {
+            // 彩人戦に戻る
+            window.gameController.currentGhost = 'ayato';
+            window.battleSystem.switchGhost('ayato');
+            window.gameController.updateGhostUI();
+            window.gameController.restartGame();
+        }
+    }
+    
+    // 現在の状態を取得
+    isActiveEnding() {
+        return this.isActive;
+    }
+}
+
+// グローバル変数として公開
+window.demoEndingSystem = new DemoEndingSystem();
 
 // 敗北時POVシステムをグローバル変数として公開
 window.defeatPOVSystem = new DefeatPOVSystem();

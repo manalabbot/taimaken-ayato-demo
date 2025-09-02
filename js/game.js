@@ -5,6 +5,65 @@ class GameController {
         this.currentEnemyHand = null;
         this.isRevealPhase = false;
         this.currentGhost = 'ayato'; // 現在の幽霊を追跡
+        this.isOpeningScreen = true; // オープニング画面フラグ
+        this.isTutorialScreen = false; // チュートリアル画面フラグ
+        this.isStoryScreen = false; // ストーリー画面フラグ
+        this.currentStoryScene = 0; // 現在のストーリーシーン
+        
+        // ストーリーシーンデータ
+        this.storyScenes = [
+            {
+                background: 'shrine',
+                text: `淫術師・鈴音のもとに一つの依頼が舞い込んだ。
+
+「街外れの屋敷に棲みつく淫霊たちを退治してほしい」
+
+依頼主の老人は震え声で語る。
+「あの屋敷に入った者は皆、淫らな夢に囚われ、
+魂を奪われてしまうのです...」
+
+鈴音は静かに頷いた。
+「分かりました。必ずや成仏させてみせます」
+
+しかし、この依頼が己の運命を大きく変えることになるとは、
+この時の鈴音はまだ知らなかった...`
+            },
+            {
+                background: 'mansion_exterior',
+                text: `呪われし屋敷の前に立つ。
+
+重厚な扉が軋みを上げて開く。
+冷たい空気が鈴音の肌を撫でた。
+
+「ここが...噂の屋敷」
+
+淫術師の本能が危険を告げている。
+しかし、鈴音は迷わず一歩を踏み出した。`
+            },
+            {
+                background: 'mansion_hall',
+                text: `薄暗いホールに足を踏み入れた瞬間―
+
+<span class="dialogue">ようこそ、美しき淫術師よ</span>
+
+声の主は、透けた体を持つ青年の霊だった。
+
+<span class="dialogue">私は<span class="character-name">彩人</span>。この屋敷の最初の番人</span>
+<span class="dialogue">君のような美しい巫女を待っていたよ</span>
+
+彩人の瞳が妖しく光る。`
+            },
+            {
+                background: 'mansion_hall',
+                text: `<span class="dialogue">さあ、始めようか。<span class="emphasis">淫術拳</span>とやらを見せてもらおう</span>
+<span class="dialogue">もし君が負ければ...その清らかな体は我々のものだ</span>
+
+鈴音は構えを取った。
+<span class="dialogue">望むところです。成仏させてあげましょう</span>
+
+かくして、運命の心理戦が始まった―`
+            }
+        ];
     }
     // ヘルパー関数
     getHandName(hand) {
@@ -68,7 +127,24 @@ class GameController {
             provokeHits: document.getElementById('provoke-hits'),
             fakeCount: document.getElementById('fake-count'),
             restartBtn: document.getElementById('restart'),
-            nextGhostBtn: document.getElementById('next-ghost')
+            nextGhostBtn: document.getElementById('next-ghost'),
+            
+            // オープニング画面
+            openingScreen: document.getElementById('opening-screen'),
+            battleScreen: document.getElementById('battle-screen'),
+            startGameBtn: document.getElementById('start-game-btn'),
+            
+            // チュートリアル画面
+            tutorialScreen: document.getElementById('tutorial-screen'),
+            tutorialStartBtn: document.getElementById('tutorial-start-btn'),
+            
+            // ストーリー画面
+            storyScreen: document.getElementById('story-screen'),
+            storyBackground: document.getElementById('story-background'),
+            storyText: document.getElementById('story-text'),
+            storyNextBtn: document.getElementById('story-next-btn'),
+            progressCurrent: document.querySelector('.progress-current'),
+            progressTotal: document.querySelector('.progress-total')
         };
     }
 
@@ -83,26 +159,49 @@ class GameController {
 
         // キーボード入力
         document.addEventListener('keydown', (e) => {
-            switch(e.key) {
-                case '1':
-                    this.selectHand('stone');
-                    break;
-                case '2':
-                    this.selectHand('scissors');
-                    break;
-                case '3':
-                    this.selectHand('paper');
-                    break;
-                case 'p':
-                case 'P':
-                    this.useProvoke();
-                    break;
-                case 'r':
-                case 'R':
-                    if (this.isRevealPhase) {
-                        this.useRewind();
-                    }
-                    break;
+            // オープニング画面でのENTERキー処理
+            if (e.key === 'Enter' && this.isOpeningScreen) {
+                this.showTutorial();
+                return;
+            }
+            
+            // チュートリアル画面でのSPACEキー処理
+            if (e.key === ' ' && this.isTutorialScreen) {
+                e.preventDefault();
+                this.showStory();
+                return;
+            }
+            
+            // ストーリー画面でのSPACEキー処理
+            if (e.key === ' ' && this.isStoryScreen) {
+                e.preventDefault();
+                this.nextStoryScene();
+                return;
+            }
+            
+            // ゲーム中のキー処理
+            if (!this.isOpeningScreen && !this.isTutorialScreen && !this.isStoryScreen) {
+                switch(e.key) {
+                    case '1':
+                        this.selectHand('stone');
+                        break;
+                    case '2':
+                        this.selectHand('scissors');
+                        break;
+                    case '3':
+                        this.selectHand('paper');
+                        break;
+                    case 'p':
+                    case 'P':
+                        this.useProvoke();
+                        break;
+                    case 'r':
+                    case 'R':
+                        if (this.isRevealPhase) {
+                            this.useRewind();
+                        }
+                        break;
+                }
             }
         });
 
@@ -121,6 +220,27 @@ class GameController {
             });
         } else {
             console.error('next-ghostボタンが見つかりません');
+        }
+        
+        // オープニング画面のスタートボタン
+        if (this.elements.startGameBtn) {
+            this.elements.startGameBtn.addEventListener('click', () => {
+                this.showTutorial();
+            });
+        }
+        
+        // チュートリアル画面のスタートボタン
+        if (this.elements.tutorialStartBtn) {
+            this.elements.tutorialStartBtn.addEventListener('click', () => {
+                this.showStory();
+            });
+        }
+        
+        // ストーリー画面の次へボタン
+        if (this.elements.storyNextBtn) {
+            this.elements.storyNextBtn.addEventListener('click', () => {
+                this.nextStoryScene();
+            });
         }
         
         // テスト用POVボタン
@@ -213,7 +333,9 @@ class GameController {
             paper: '布掌'
         };
         
-        this.addLog(`鈴音: ${handNames[state.selectedPlayerHand]} vs 彩人: ${handNames[this.currentEnemyHand]}`, 'system');
+        // 敌の名前を動的に取得
+        const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : '彩人';
+        this.addLog(`鈴音: ${handNames[state.selectedPlayerHand]} vs ${enemyName}: ${handNames[this.currentEnemyHand]}`, 'system');
         
         // 読み直しフェーズへ
         this.isRevealPhase = true;
@@ -363,19 +485,33 @@ class GameController {
         
         // 仕草を表示
         console.log('新しい仕草:', tell);
-        if (tell) {
-            const handNames = {
-                stone: '石拳',
-                scissors: '剪刀',
-                paper: '布掌'
-            };
-            
-            this.elements.currentTell.textContent = 
-                `仕草: ${tell.name} ${tell.icon} → ${handNames[tell.target]} +20%/フェイク5%`;
-            this.addLog(`彩人の仕草: ${tell.name} - ${tell.desc}`, 'system');
+        
+        // 栗之助の場合は特別な表示
+        if (this.currentGhost === 'kurinosuke') {
+            // HP40%以下でパニックモード
+            if (state.enemyHP <= 40) {
+                this.elements.currentTell.textContent = 'パニックになり手がランダム';
+                this.addLog('栗之助はパニック状態...手がランダムになった！', 'system');
+            } else {
+                this.elements.currentTell.textContent = '正直すぎて仕草を出さない';
+                this.addLog('栗之助は正直すぎて仕草を見せない...', 'system');
+            }
         } else {
-            this.elements.currentTell.textContent = '仕草なし（完全ランダム）';
-            this.addLog('彩人は仕草を見せない...完全ランダム', 'system');
+            // 彩人の場合は通常の仕草表示
+            if (tell) {
+                const handNames = {
+                    stone: '石拳',
+                    scissors: '剪刀',
+                    paper: '布掌'
+                };
+                
+                this.elements.currentTell.textContent = 
+                    `仕草: ${tell.name} ${tell.icon} → ${handNames[tell.target]} +20%/フェイク5%`;
+                this.addLog(`彩人の仕草: ${tell.name} - ${tell.desc}`, 'system');
+            } else {
+                this.elements.currentTell.textContent = '仕草なし（完全ランダム）';
+                this.addLog('彩人は仕草を見せない...完全ランダム', 'system');
+            }
         }
         
         this.updateUI();
@@ -400,7 +536,7 @@ class GameController {
         //     window.povSystem.autoChangePOV(state, 'ayato_crisis');
         // }
         
-        // ラウンド情報更新（最大10で固定）
+        // ラウンド情報更新（表示は最大10、内部ロジックは実際の値を使用）
         const displayRound = Math.min(state.round, 10);
         this.elements.currentRound.textContent = displayRound;
         this.elements.playerWins.textContent = state.playerWins;
@@ -489,7 +625,8 @@ class GameController {
         } else if (result.winner === 'player_special') {
             console.log('プレイヤー特殊勝利処理');
             this.elements.resultTitle.textContent = '奇跡の勝利！';
-            this.elements.resultText.textContent = `限界状態から逆転勝利！鈴音の気迫が彩人を圧倒した！`;
+            const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : '彩人';
+            this.elements.resultText.textContent = `限界状態から逆転勝利！鈴音の気迫が${enemyName}を圧倒した！`;
             this.addVictoryBonus('comeback_victory');
         } else if (result.winner === 'enemy') {
             console.log('敵勝利処理 - POV演出開始予定');
@@ -509,12 +646,14 @@ class GameController {
             // 結果表示を少し遅らせる
             setTimeout(() => {
                 this.elements.resultTitle.textContent = '敗北...';
-                this.elements.resultText.textContent = `彩人に敗れた...（${result.reason}）`;
+                const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : '彩人';
+                this.elements.resultText.textContent = `${enemyName}に敗れた...（${result.reason}）`;
             }, 100);
         } else if (result.winner === 'enemy_special') {
             console.log('敵特殊勝利処理');
             this.elements.resultTitle.textContent = '屈辱的敗北...';
-            this.elements.resultText.textContent = `限界露出で敗北...鈴音は恥ずかしい格好のまま彩人に屈服した...`;
+            const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : '彩人';
+            this.elements.resultText.textContent = `限界露出で敗北...鈴音は恥ずかしい格奿のまま${enemyName}に屈服した...`;
             
             // 屈辱的敗北の場合、特殊処理フラグを設定
             this.handleSpecialDefeat(state);
@@ -551,10 +690,12 @@ class GameController {
 
     // プレイヤー勝利処理
     handlePlayerVictory(victoryType, state, reason) {
+        const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : '彩人';
+        
         switch (victoryType) {
             case 'perfect_victory':
                 this.elements.resultTitle.textContent = '完璧勝利！';
-                this.elements.resultText.textContent = `無傷で彩人を圧倒！完璧な心理戦だった！（${reason}）`;
+                this.elements.resultText.textContent = `無傷で${enemyName}を圧倒！完璧な心理戦だった！（${reason}）`;
                 this.addVictoryBonus('perfect_victory');
                 break;
             case 'pure_victory':
@@ -564,7 +705,7 @@ class GameController {
                 break;
             default:
                 this.elements.resultTitle.textContent = '勝利！';
-                this.elements.resultText.textContent = `見事彩人を退けた！（${reason}）`;
+                this.elements.resultText.textContent = `見事${enemyName}を退けた！（${reason}）`;
                 this.addVictoryBonus('normal_victory');
                 break;
         }
@@ -618,8 +759,19 @@ class GameController {
             defeatReason: '限界露出'
         });
         
-        // モーダルに特殊ボタンを追加する準備
+        // モーダルに特殊ボタンを追加する準備（既存ボタンがあれば追加しない）
         const modalContent = this.elements.resultModal.querySelector('.modal-content');
+        if (!modalContent) {
+            console.error('modalContentが見つかりません');
+            return;
+        }
+        
+        // すでに特殊ボタンが存在するか確認
+        const existingButton = modalContent.querySelector('.special-defeat-btn');
+        if (existingButton) {
+            return; // すでに存在する場合は何もしない
+        }
+        
         const specialButton = document.createElement('button');
         specialButton.className = 'special-defeat-btn';
         specialButton.textContent = '続きを見る...';
@@ -629,16 +781,177 @@ class GameController {
             alert('特殊イベントは今後実装予定です！');
         });
         
-        // リスタートボタンの前に挿入
-        const restartBtn = modalContent.querySelector('#restart');
-        modalContent.insertBefore(specialButton, restartBtn);
+        // result-buttonsの中に挿入（エラーハンドリング強化）
+        try {
+            const buttonsContainer = modalContent.querySelector('.result-buttons');
+            if (buttonsContainer) {
+                const restartBtn = buttonsContainer.querySelector('#restart');
+                if (restartBtn && restartBtn.parentNode === buttonsContainer) {
+                    buttonsContainer.insertBefore(specialButton, restartBtn);
+                } else {
+                    buttonsContainer.appendChild(specialButton);
+                }
+            } else {
+                // フォールバック：モーダルコンテンツの最後に追加
+                modalContent.appendChild(specialButton);
+            }
+        } catch (error) {
+            console.error('特殊ボタン追加でエラー:', error);
+            // エラーが発生してもゲームを継続させるため、ボタン追加をスキップ
+        }
+    }
+    
+    // オープニング画面からチュートリアル画面へ
+    showTutorial() {
+        console.log('チュートリアル画面表示');
+        
+        // オープニング画面を非表示
+        if (this.elements.openingScreen) {
+            this.elements.openingScreen.style.display = 'none';
+        }
+        
+        // チュートリアル画面を表示
+        if (this.elements.tutorialScreen) {
+            this.elements.tutorialScreen.style.display = 'flex';
+        }
+        
+        // フラグ更新
+        this.isOpeningScreen = false;
+        this.isTutorialScreen = true;
+        
+        console.log('オープニング画面からチュートリアル画面に遷移完了');
+    }
+    
+    // チュートリアル画面からストーリーシーンへ
+    showStory() {
+        console.log('ストーリーシーン開始');
+        
+        // チュートリアル画面を非表示
+        if (this.elements.tutorialScreen) {
+            this.elements.tutorialScreen.style.display = 'none';
+        }
+        
+        // ストーリー画面を表示
+        if (this.elements.storyScreen) {
+            this.elements.storyScreen.style.display = 'flex';
+        }
+        
+        // フラグ更新
+        this.isTutorialScreen = false;
+        this.isStoryScreen = true;
+        this.currentStoryScene = 0;
+        
+        // プログレス表示更新
+        if (this.elements.progressTotal) {
+            this.elements.progressTotal.textContent = this.storyScenes.length;
+        }
+        
+        // 最初のシーン表示
+        this.displayStoryScene();
+        
+        console.log('チュートリアル画面からストーリーシーンに遷移完了');
+    }
+    
+    // ストーリーシーン表示
+    displayStoryScene() {
+        const scene = this.storyScenes[this.currentStoryScene];
+        if (!scene) return;
+        
+        // プログレス表示更新
+        if (this.elements.progressCurrent) {
+            this.elements.progressCurrent.textContent = this.currentStoryScene + 1;
+        }
+        
+        // 背景変更（画像対応）
+        if (this.elements.storyBackground) {
+            const backgroundImages = {
+                shrine: 'url("../images/shrine_background.jpg")',
+                mansion_exterior: 'url("../images/mansion_exterior_background.jpg")',
+                mansion_hall: 'url("../images/mansion_hall_background.jpg")'
+            };
+            
+            const bgImage = backgroundImages[scene.background];
+            if (bgImage) {
+                this.elements.storyBackground.style.backgroundImage = bgImage;
+            }
+        }
+        
+        // タイプライター効果でテキスト表示
+        this.typewriterEffect(scene.text);
+    }
+    
+    // タイプライター効果
+    typewriterEffect(text) {
+        const textElement = this.elements.storyText;
+        if (!textElement) return;
+        
+        // ボタンを無効化
+        if (this.elements.storyNextBtn) {
+            this.elements.storyNextBtn.disabled = true;
+        }
+        
+        textElement.innerHTML = '';
+        textElement.classList.add('typing');
+        
+        let index = 0;
+        const speed = 30; // ミリ秒
+        
+        const typeChar = () => {
+            if (index < text.length) {
+                textElement.innerHTML = text.slice(0, index + 1);
+                index++;
+                setTimeout(typeChar, speed);
+            } else {
+                // タイプ完了
+                textElement.classList.remove('typing');
+                if (this.elements.storyNextBtn) {
+                    this.elements.storyNextBtn.disabled = false;
+                }
+            }
+        };
+        
+        typeChar();
+    }
+    
+    // 次のストーリーシーン
+    nextStoryScene() {
+        this.currentStoryScene++;
+        
+        if (this.currentStoryScene >= this.storyScenes.length) {
+            // ストーリー終了、バトル開始
+            this.startGame();
+        } else {
+            // 次のシーン表示
+            this.displayStoryScene();
+        }
+    }
+    
+    // ストーリー終了からゲーム開始
+    startGame() {
+        console.log('ゲーム開始処理開始');
+        
+        // ストーリー画面を非表示
+        if (this.elements.storyScreen) {
+            this.elements.storyScreen.style.display = 'none';
+        }
+        
+        // バトル画面を表示
+        if (this.elements.battleScreen) {
+            this.elements.battleScreen.style.display = 'block';
+        }
+        
+        // フラグ更新
+        this.isStoryScreen = false;
+        
+        console.log('ストーリーシーンからバトル画面に遷移完了');
     }
 
     // ゲーム再開
     restartGame() {
         window.battleSystem.resetGame();
         this.elements.resultModal.classList.add('hidden');
-        this.elements.logContent.innerHTML = '<p class="log-entry system">彩人との心理戦開始...</p>';
+        const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : '彩人';
+        this.elements.logContent.innerHTML = `<p class="log-entry system">${enemyName}との心理戦開始...</p>`;
         this.isRevealPhase = false;
         this.currentEnemyHand = null;
         
@@ -658,11 +971,35 @@ class GameController {
     
     // 次の幽霊に進む
     nextGhost() {
-        console.log('nextGhost()メソッドが呼び出されました');
+        console.log('=== nextGhost() メソッド実行開始 ===');
         
         // モーダルを閉じる
         this.elements.resultModal.classList.add('hidden');
         
+        console.log('▼ 条件分岐前の状態確認');
+        console.log('this.currentGhost の値:', this.currentGhost);
+        console.log('this.currentGhost の型:', typeof this.currentGhost);
+        console.log('this.currentGhost === "kurinosuke" ?', this.currentGhost === 'kurinosuke');
+        
+        // 現在栗之助戦かどうかをチェック
+        if (this.currentGhost === 'kurinosuke') {
+            console.log('>>> 栗之助戦判定: TRUE - 体験版終了画面へ');
+            console.log('demoEndingSystem存在確認:', typeof window.demoEndingSystem);
+            if (window.demoEndingSystem) {
+                console.log('体験版終了画面開始...');
+                window.demoEndingSystem.startDemoEnding();
+                return;
+            } else {
+                console.error('demoEndingSystemが見つかりません');
+                return;
+            }
+        } else {
+            console.log('>>> 栗之助戦判定: FALSE - 彩人戦後処理と想定');
+            console.log('なぜFALSEか? currentGhost="' + this.currentGhost + '" (長さ:' + this.currentGhost.length + ')');
+        }
+        
+        // 彩人戦後は栗之助戦へ
+        console.log('彩人戦後 - 栗之助戦に遷移');
         this.currentGhost = 'kurinosuke';
         console.log('幽霊を栗之助に変更:', this.currentGhost);
         window.battleSystem.switchGhost('kurinosuke');
@@ -694,6 +1031,7 @@ class GameController {
         
         this.updateUI();
         this.startNewRound();
+        console.log('=== nextGhost() 終了 ===');
     }
 
     // 幽霊UIを更新

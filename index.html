@@ -10,7 +10,167 @@
     <link rel="stylesheet" href="css/battle.css">
 </head>
 <body>
-    <div class="battle-screen">
+    <!-- オープニング画面 -->
+    <div class="opening-screen" id="opening-screen">
+        <div class="opening-background"></div>
+        <div class="opening-content">
+            <div class="game-title">
+                <h1 class="main-title">淫術拳</h1>
+                <h2 class="main-subtitle">〜封印を解かれし巫女〜</h2>
+                <h3 class="sub-title">〜体験版〜</h3>
+                <p class="title-desc">三手心理戦バトル</p>
+            </div>
+            
+            <div class="character-intro">
+                <div class="character-showcase">
+                    <div class="character-center">
+                        <div class="character-portrait">
+                            <span class="character-emoji large animated">👘</span>
+                            <p class="character-name">鈴音</p>
+                            <p class="character-role">淫術師</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+
+            <div class="start-controls">
+                <button class="start-btn" id="start-game-btn">
+                    <span class="btn-text">ゲーム開始</span>
+                    <span class="btn-key">ENTER</span>
+                </button>
+                <p class="demo-note">体験版では彩人・栗之助の2体が登場</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- チュートリアル画面 -->
+    <div class="tutorial-screen" id="tutorial-screen" style="display: none;">
+        <div class="tutorial-background"></div>
+        <div class="tutorial-content">
+            <div class="tutorial-header">
+                <h2 class="tutorial-title">遊び方</h2>
+                <p class="tutorial-subtitle">～心理戦バトルの基本～</p>
+            </div>
+
+            <div class="tutorial-sections">
+                <!-- 基本ルール -->
+                <div class="tutorial-section">
+                    <h3 class="section-title">基本の三手</h3>
+                    <div class="hands-explanation">
+                        <div class="hand-item">
+                            <span class="hand-symbol">🪨</span>
+                            <span class="hand-name">石拳（グー）</span>
+                            <span class="hand-beats">✂️ 剪刀に勝つ</span>
+                        </div>
+                        <div class="hand-item">
+                            <span class="hand-symbol">✂️</span>
+                            <span class="hand-name">剪刀（チョキ）</span>
+                            <span class="hand-beats">🌊 布掌に勝つ</span>
+                        </div>
+                        <div class="hand-item">
+                            <span class="hand-symbol">🌊</span>
+                            <span class="hand-name">布掌（パー）</span>
+                            <span class="hand-beats">🪨 石拳に勝つ</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 心理戦要素 -->
+                <div class="tutorial-section">
+                    <h3 class="section-title">心理戦の駆け引き</h3>
+                    <div class="features-explanation">
+                        <div class="feature">
+                            <div class="feature-header">
+                                <span class="feature-icon">🎯</span>
+                                <span class="feature-title">仕草を読め</span>
+                            </div>
+                            <p class="feature-desc">
+                                淫霊の癖や仕草から次の手を予測しよう。<br>
+                                ただし、淫霊によって特徴は異なる...<br>
+                                観察力が勝利への鍵となる！
+                            </p>
+                        </div>
+                        
+                        <div class="feature">
+                            <div class="feature-header">
+                                <span class="feature-icon">😈</span>
+                                <span class="feature-title">挑発（P キー）</span>
+                            </div>
+                            <p class="feature-desc">
+                                3回まで使える特殊技。<br>
+                                淫霊を惑わせて手を誘導できるかも...<br>
+                                ただし効果は相手によって変わる。
+                            </p>
+                        </div>
+                        
+                        <div class="feature">
+                            <div class="feature-header">
+                                <span class="feature-icon">🔄</span>
+                                <span class="feature-title">読み直し（R キー）</span>
+                            </div>
+                            <p class="feature-desc">
+                                1回だけ使える切り札。<br>
+                                公開後に手を変更できる最後の手段。<br>
+                                次ラウンドで負けると追加ペナルティ。
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 勝利条件 -->
+                <div class="tutorial-section">
+                    <h3 class="section-title">勝利を掴め</h3>
+                    <div class="victory-conditions">
+                        <div class="condition-item">
+                            <span class="condition-icon">⚔️</span>
+                            <span class="condition-text">10ラウンド中5勝で勝利</span>
+                        </div>
+                        <div class="condition-item">
+                            <span class="condition-icon">💔</span>
+                            <span class="condition-text">HP0になると敗北</span>
+                        </div>
+                        <div class="condition-item">
+                            <span class="condition-icon">👗</span>
+                            <span class="condition-text">負けると服が...</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="tutorial-controls">
+                <button class="tutorial-start-btn" id="tutorial-start-btn">
+                    <span class="btn-text">バトル開始</span>
+                    <span class="btn-key">SPACE</span>
+                </button>
+                <p class="tutorial-note">準備はいいか？鈴音の運命はあなたの手に</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- ストーリーシーン画面 -->
+    <div class="story-screen" id="story-screen" style="display: none;">
+        <div class="story-background" id="story-background"></div>
+        <div class="story-content">
+            <div class="story-text-container">
+                <div class="story-text" id="story-text">
+                    <!-- ストーリーテキストがここに表示される -->
+                </div>
+            </div>
+            
+            <div class="story-controls">
+                <button class="story-next-btn" id="story-next-btn">
+                    <span class="btn-text">次へ</span>
+                    <span class="btn-key">SPACE</span>
+                </button>
+                <div class="story-progress" id="story-progress">
+                    <span class="progress-current">1</span> / <span class="progress-total">4</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="battle-screen" id="battle-screen" style="display: none;">
         <!-- 背景オーバーレイ -->
         <div class="background-overlay"></div>
         
@@ -189,6 +349,20 @@
         <div class="pov-controls">
             <div class="pov-instruction" id="pov-instruction">クリックしてください</div>
             <button class="pov-exit-btn" id="pov-exit-btn">戻る</button>
+        </div>
+    </div>
+
+    <!-- 体験版終了画面 -->
+    <div class="demo-ending-screen" id="demo-ending-screen" style="display: none;">
+        <div class="demo-ending-background"></div>
+        <div class="demo-ending-content">
+            <div class="ending-text-container">
+                <div id="ending-text" class="ending-text"></div>
+            </div>
+            <div class="ending-controls" id="ending-controls" style="display: none;">
+                <button id="restart-demo" class="ending-btn">もう一度体験版を遊ぶ</button>
+                <a href="#" class="ending-btn wishlist-btn">製品版をウィッシュリストに追加</a>
+            </div>
         </div>
     </div>
 
