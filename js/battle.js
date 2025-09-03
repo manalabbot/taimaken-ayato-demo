@@ -2,7 +2,7 @@
 class BattleSystem {
     constructor() {
         this.gameState = {
-            round: 1,
+            round: 1,  // 1から開始（現在のラウンド番号）
             playerHP: 100,
             enemyHP: 100,
             playerWins: 0,
@@ -46,8 +46,13 @@ class BattleSystem {
         // 栗之助用の追加状態
         this.kurinosukeStoneCount = 0; // 石を出した回数
         this.kurinosukeInStonePattern = false; // 石3回パターン中か
+        
+        // 太郎の適応型AI用変数
+        this.taroLastPlayerHand = null;  // プレイヤーの前回の手
+        this.taroConsecutiveLosses = 0;  // プレイヤーの連敗数
+        this.taroFriendshipMode = false; // 友情モード
         this.gameState = {
-            round: 1,
+            round: 1,  // 1から開始（現在のラウンド番号）
             playerHP: this.config.MAX_HP || 100,
             enemyHP: this.config.MAX_HP || 100,
             playerWins: 0,
@@ -75,17 +80,33 @@ class BattleSystem {
 
     // 新ラウンド開始
     startNewRound() {
+        // 新しいラウンドの開始
         this.gameState.isRoundActive = true;
         this.gameState.selectedPlayerHand = null;
         this.gameState.isProvoked = false;
         this.gameState.provokedHand = null;
         this.gameState.wasFake = false;
         
+        // 敵データのデバッグログ
+        console.log('prepareRound - enemyData:', this.enemyData);
+        
         // 栗之助の場合は仕草なし
         if (this.enemyData && this.enemyData.id === 'kurinosuke') {
             this.gameState.currentTell = null;
+        } else if (this.enemyData && this.enemyData.id === 'taro') {
+            // 太郎の場合は30%の確率で仕草あり
+            console.log('太郎の仕草判定開始 - 30%の確率');
+            if (Math.random() < 0.30) {
+                const tells = window.csvLoader.getTells();
+                if (tells.length > 0) {
+                    const randomIndex = Math.floor(Math.random() * tells.length);
+                    this.gameState.currentTell = tells[randomIndex];
+                }
+            } else {
+                this.gameState.currentTell = null;
+            }
         } else {
-            // 仕草を選択
+            // 仕草を選択（通常の確率）
             this.gameState.currentTell = window.csvLoader.getRandomTell();
         }
         
@@ -117,15 +138,17 @@ class BattleSystem {
             this.gameState.isProvoked = true;
             this.gameState.provokedHand = this.gameState.lastEnemyWin;
             this.gameState.stats.provokeHits++;
+            const ghostName = this.enemyData?.name || '相手';
             return {
                 success: true,
-                message: `挑発成功！彩人は${this.handNames[this.gameState.lastEnemyWin]}を出しやすくなった！`,
+                message: `挑発成功！${ghostName}は${this.handNames[this.gameState.lastEnemyWin]}を出しやすくなった！`,
                 targetHand: this.gameState.lastEnemyWin
             };
         } else {
+            const ghostName = this.enemyData?.name || '相手';
             return {
                 success: true,
-                message: '挑発失敗...彩人は冷静だ',
+                message: `挑発失敗...${ghostName}は冷静だ`,
                 targetHand: null
             };
         }
@@ -136,6 +159,13 @@ class BattleSystem {
         // 栗之助の特殊パターン処理
         if (this.enemyData && this.enemyData.id === 'kurinosuke') {
             return this.decideKurinosukeHand();
+        }
+        
+        // 太郎の適応型AI処理
+        if (this.enemyData && this.enemyData.id === 'taro') {
+            const taroHand = this.decideTaroHand();
+            console.log(`太郎の手決定: ${taroHand}`);
+            return taroHand;
         }
         
         const ayatoData = window.csvLoader.getAyatoData();
@@ -149,8 +179,9 @@ class BattleSystem {
         if (this.gameState.currentTell) {
             const tellTarget = this.gameState.currentTell.target;
             
-            // フェイク判定（5%）
-            if (Math.random() < this.config.FAKE_RATE) {
+            // フェイク判定（太郎は10%、他は5%）
+            const fakeRate = (this.enemyData && this.enemyData.id === 'taro') ? 0.10 : (this.config.FAKE_RATE || 0.05);
+            if (Math.random() < fakeRate) {
                 // フェイク：別の手を強化
                 const otherHands = ['stone', 'scissors', 'paper'].filter(h => h !== tellTarget);
                 const fakeTarget = otherHands[Math.floor(Math.random() * otherHands.length)];
@@ -228,10 +259,12 @@ class BattleSystem {
         };
 
         // 結果に応じて処理
+        console.log(`勝負判定: プレイヤー=${playerHand} vs 敵=${enemyHand} → 結果=${result}`);
         switch (result) {
             case 'player_win':
                 this.gameState.enemyHP = Math.max(0, this.gameState.enemyHP - damage);
                 this.gameState.playerWins++;
+                console.log(`プレイヤー勝利！勝数更新: ${this.gameState.playerWins}`);
                 this.gameState.dominanceLevel = Math.min(3, this.gameState.dominanceLevel + 1);
                 roundResult.damage = damage;
                 roundResult.message = `プレイヤーの勝利！${this.handNames[playerHand]}が${this.handNames[enemyHand]}を破った！`;
@@ -246,6 +279,7 @@ class BattleSystem {
             case 'enemy_win':
                 this.gameState.playerHP = Math.max(0, this.gameState.playerHP - damage);
                 this.gameState.enemyWins++;
+                console.log(`敵勝利！敗数更新: ${this.gameState.enemyWins}`);
                 // this.gameState.exposureLevel = Math.min(5, this.gameState.exposureLevel + 1); // POVで手動変更するためコメントアウト
                 this.gameState.dominanceLevel = Math.max(0, this.gameState.dominanceLevel - 1);
                 this.gameState.lastEnemyWin = enemyHand;
@@ -265,6 +299,30 @@ class BattleSystem {
             this.gameState.rewindPenalty = true;
         } else {
             this.gameState.rewindPenalty = false;
+        }
+
+        // 太郎の適応型AI用状態更新
+        console.log('processRoundResult - currentGhost:', this.gameState.currentGhost, 'enemyData.id:', this.enemyData?.id);
+        if (this.gameState.currentGhost === 'taro') {
+            // プレイヤーの手を記録（次回の適応AI用）
+            console.log(`太郎戦: プレイヤーの手を記録 ${playerHand} (次回の適応AI用)`);
+            this.taroLastPlayerHand = playerHand;
+            
+            // 連敗カウント更新
+            if (result === 'enemy_win') {
+                this.taroConsecutiveLosses++;
+                console.log(`太郎戦: プレイヤー連敗数 ${this.taroConsecutiveLosses}`);
+                
+                // 3連敗で友情モード発動
+                if (this.taroConsecutiveLosses >= 3 && !this.taroFriendshipMode) {
+                    this.taroFriendshipMode = true;
+                    console.log('太郎戦: 友情モード発動！');
+                }
+            } else if (result === 'player_win') {
+                // プレイヤーが勝ったら連敗カウントリセット
+                this.taroConsecutiveLosses = 0;
+            }
+            // 引き分けの場合は連敗カウントそのまま
         }
 
         // ラウンド進行前のデバッグログ
@@ -421,8 +479,14 @@ class BattleSystem {
     
     // 露出レベルを設定（POVシステムから使用）
     setExposureLevel(level) {
+        const oldLevel = this.gameState.exposureLevel;
         this.gameState.exposureLevel = level;
-        console.log('BattleSystem - 露出レベル設定:', level);
+        console.log('BattleSystem - 露出レベル設定:', oldLevel, '→', level);
+        
+        // 服装変化時の対話セリフを追加（game.jsのメソッドを呼び出し）
+        if (window.gameInstance && oldLevel !== level) {
+            window.gameInstance.addExposureDialogue(oldLevel, level);
+        }
     }
 
     // 栗之助の手を決定する特殊ロジック
@@ -483,6 +547,45 @@ class BattleSystem {
         return 'stone'; // フォールバック
     }
     
+    // 太郎の手を決定する適応型AIロジック
+    decideTaroHand() {
+        console.log(`太郎AI: 友情モード=${this.taroFriendshipMode}, 前回手=${this.taroLastPlayerHand}, ラウンド=${this.gameState.round}`);
+        
+        // 友情モード: 3連敗後は完全ランダム
+        if (this.taroFriendshipMode) {
+            const hands = ['stone', 'scissors', 'paper'];
+            const hand = hands[Math.floor(Math.random() * hands.length)];
+            console.log(`太郎AI: 友情モード - ${hand}選択`);
+            return hand;
+        }
+        
+        // 1ラウンド目またはプレイヤーの前の手がない場合は完全ランダム
+        if (!this.taroLastPlayerHand || this.gameState.round === 1) {
+            const hands = ['stone', 'scissors', 'paper'];
+            const hand = hands[Math.floor(Math.random() * hands.length)];
+            console.log(`太郎AI: 初回ランダム - ${hand}選択`);
+            return hand;
+        }
+        
+        // プレイヤーの前の手に勝つ手を決定
+        const counterHands = {
+            stone: 'paper',    // 石拳に勝つのは布掌
+            scissors: 'stone', // 剪刀に勝つのは石拳
+            paper: 'scissors'  // 布掌に勝つのは剪刀
+        };
+        
+        const counterHand = counterHands[this.taroLastPlayerHand];
+        
+        // 60%の確率でカウンター手を選択
+        if (Math.random() < 0.60) {
+            return counterHand;
+        } else {
+            // 残り40%は他の手を20%ずつ
+            const otherHands = ['stone', 'scissors', 'paper'].filter(hand => hand !== counterHand);
+            return otherHands[Math.floor(Math.random() * otherHands.length)];
+        }
+    }
+    
     // 幽霊を切り替える
     switchGhost(ghostId) {
         let ghostData = null;
@@ -490,16 +593,19 @@ class BattleSystem {
             ghostData = window.csvLoader.getKurinosukeData();
         } else if (ghostId === 'ayato') {
             ghostData = window.csvLoader.getAyatoData();
+        } else if (ghostId === 'taro') {
+            ghostData = window.csvLoader.getTaroData();
         }
         
         if (ghostData) {
             this.enemyData = ghostData;
+            this.gameState.currentGhost = ghostId;  // currentGhostを設定
             // 栗之助パターン用変数リセット
             this.kurinosukeStoneCount = 0;
             this.kurinosukeInStonePattern = false;
-            console.log(`幽霊を${ghostData.name}に切り替えました`);
+            console.log(`淫霊を${ghostData.name}に切り替えました`);
         } else {
-            console.error('幽霊データが見つかりません:', ghostId);
+            console.error('淫霊データが見つかりません:', ghostId);
         }
     }
 }
@@ -942,269 +1048,6 @@ class DefeatPOVSystem {
     }
 }
 
-// 体験版終了画面システム
-class DemoEndingSystem {
-    constructor() {
-        this.isActive = false;
-        this.currentTextIndex = 0;
-        this.currentCharIndex = 0;
-        this.typewriterTimer = null;
-        this.isTyping = false;
-        
-        this.endingTexts = [
-            "『体験版をお楽しみいただけましたか？』",
-            "",
-            "製品版の淫霊たちは、もっと... 激しく求めてきます。",
-            "",
-            "地下階段を降りるにつれて、",
-            "独特な嗜好を持っている淫霊達が..",
-            "",
-            "個性あふれる特殊攻撃や癖を駆使して、",
-            "鈴音の「すべて」を奪おうとしてくるでしょう。",
-            "",
-            "そして最深部のボスに至っては、",
-            "負けた者を「永遠の愛玩人形」にすると言われています。",
-            "",
-            "果たして鈴音は、純潔...いえ、",
-            "淫術士としての誇りを守り抜けるのか。",
-            "",
-            "それとも、快楽...ではなく、",
-            "淫霊たちの虜になってしまうのか。",
-            "",
-            "『その結末は、あなた次第です』",
-            "",
-            "── 製品版で、完全決着 ──"
-        ];
-    }
-    
-    // 体験版終了画面を開始
-    startDemoEnding() {
-        console.log('体験版終了画面開始');
-        
-        const demoScreen = document.getElementById('demo-ending-screen');
-        const endingText = document.getElementById('ending-text');
-        const endingControls = document.getElementById('ending-controls');
-        
-        if (!demoScreen || !endingText) {
-            console.error('体験版終了画面の要素が見つかりません');
-            return;
-        }
-        
-        // 画面を表示
-        demoScreen.style.display = 'block';
-        this.isActive = true;
-        
-        // テキストクリア
-        endingText.innerHTML = '';
-        endingControls.style.display = 'none';
-        
-        // タイプライター開始
-        this.currentTextIndex = 0;
-        this.currentCharIndex = 0;
-        this.startTypewriter();
-        
-        // イベントリスナー設定
-        this.setupEventListeners();
-    }
-    
-    // タイプライター演出開始
-    startTypewriter() {
-        if (this.currentTextIndex >= this.endingTexts.length) {
-            // 全テキスト終了、ボタンを表示
-            this.showControls();
-            return;
-        }
-        
-        this.isTyping = true;
-        const currentText = this.endingTexts[this.currentTextIndex];
-        
-        if (currentText === "") {
-            // 空行の場合はすぐに次へ
-            this.addTextLine("");
-            this.currentTextIndex++;
-            setTimeout(() => this.startTypewriter(), 500);
-            return;
-        }
-        
-        this.currentCharIndex = 0;
-        this.typeNextChar();
-    }
-    
-    // 次の文字をタイプ
-    typeNextChar() {
-        if (!this.isActive) return;
-        
-        const currentText = this.endingTexts[this.currentTextIndex];
-        
-        if (this.currentCharIndex >= currentText.length) {
-            // 現在行終了
-            this.isTyping = false;
-            this.currentTextIndex++;
-            
-            // 次の行まで少し待機
-            setTimeout(() => {
-                this.startTypewriter();
-            }, 800);
-            return;
-        }
-        
-        // 現在の行を更新
-        const displayText = currentText.substring(0, this.currentCharIndex + 1);
-        this.updateCurrentLine(displayText);
-        
-        this.currentCharIndex++;
-        
-        // 次の文字まで待機（文字によって速度調整）
-        const char = currentText[this.currentCharIndex - 1];
-        let delay = 50; // 基本速度
-        
-        if (char === '。' || char === '！' || char === '？') {
-            delay = 300; // 句読点で長めの停止
-        } else if (char === '、' || char === '，') {
-            delay = 150; // 読点で短い停止
-        } else if (char === '『' || char === '』' || char === '「' || char === '」') {
-            delay = 100; // 括弧で少し停止
-        }
-        
-        this.typewriterTimer = setTimeout(() => this.typeNextChar(), delay);
-    }
-    
-    // 現在行を更新
-    updateCurrentLine(text) {
-        const endingText = document.getElementById('ending-text');
-        if (!endingText) return;
-        
-        // 既存の行を取得
-        const lines = endingText.querySelectorAll('.ending-line');
-        
-        if (lines.length === 0 || lines[lines.length - 1].classList.contains('complete')) {
-            // 新しい行を追加
-            this.addTextLine(text);
-        } else {
-            // 最後の行を更新
-            lines[lines.length - 1].textContent = text;
-        }
-    }
-    
-    // テキスト行を追加
-    addTextLine(text) {
-        const endingText = document.getElementById('ending-text');
-        if (!endingText) return;
-        
-        const line = document.createElement('div');
-        line.className = 'ending-line';
-        line.textContent = text;
-        
-        // 空行の場合は高さを調整
-        if (text === "") {
-            line.style.height = '0.5em';
-        }
-        
-        endingText.appendChild(line);
-        
-        // 行が完成した場合はマーク
-        if (!this.isTyping || this.currentCharIndex >= this.endingTexts[this.currentTextIndex].length) {
-            line.classList.add('complete');
-        }
-        
-        // スクロール調整
-        line.scrollIntoView({ behavior: 'smooth', block: 'end' });
-    }
-    
-    // コントロールボタンを表示
-    showControls() {
-        const endingControls = document.getElementById('ending-controls');
-        if (endingControls) {
-            setTimeout(() => {
-                endingControls.style.display = 'block';
-                endingControls.style.opacity = '0';
-                endingControls.style.transition = 'opacity 1s ease-in';
-                
-                setTimeout(() => {
-                    endingControls.style.opacity = '1';
-                }, 100);
-            }, 1000);
-        }
-    }
-    
-    // イベントリスナー設定
-    setupEventListeners() {
-        const restartBtn = document.getElementById('restart-demo');
-        if (restartBtn) {
-            restartBtn.addEventListener('click', () => {
-                this.restartDemo();
-            });
-        }
-        
-        // スキップ機能（スペースキー）
-        document.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && this.isActive) {
-                this.skipTypewriter();
-            }
-        });
-        
-        // クリックでスキップ
-        const demoScreen = document.getElementById('demo-ending-screen');
-        if (demoScreen) {
-            demoScreen.addEventListener('click', () => {
-                if (this.isActive && this.isTyping) {
-                    this.skipTypewriter();
-                }
-            });
-        }
-    }
-    
-    // タイプライターをスキップ
-    skipTypewriter() {
-        if (!this.isTyping) return;
-        
-        // タイマーをクリア
-        if (this.typewriterTimer) {
-            clearTimeout(this.typewriterTimer);
-        }
-        
-        // 全テキストを即座に表示
-        const endingText = document.getElementById('ending-text');
-        if (endingText) {
-            endingText.innerHTML = '';
-            
-            this.endingTexts.forEach(text => {
-                this.addTextLine(text);
-            });
-        }
-        
-        this.isTyping = false;
-        this.showControls();
-    }
-    
-    // 体験版を再開
-    restartDemo() {
-        // 終了画面を隠す
-        const demoScreen = document.getElementById('demo-ending-screen');
-        if (demoScreen) {
-            demoScreen.style.display = 'none';
-        }
-        
-        this.isActive = false;
-        
-        // ゲームを最初から再開
-        if (window.gameController) {
-            // 彩人戦に戻る
-            window.gameController.currentGhost = 'ayato';
-            window.battleSystem.switchGhost('ayato');
-            window.gameController.updateGhostUI();
-            window.gameController.restartGame();
-        }
-    }
-    
-    // 現在の状態を取得
-    isActiveEnding() {
-        return this.isActive;
-    }
-}
-
-// グローバル変数として公開
-window.demoEndingSystem = new DemoEndingSystem();
 
 // 敗北時POVシステムをグローバル変数として公開
 window.defeatPOVSystem = new DefeatPOVSystem();

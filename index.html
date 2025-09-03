@@ -3,11 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>退魔拳 - 彩人戦体験版</title>
+    <title>淫術拳 〜封印を解かれし巫女〜</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+JP:wght@300;400;500;700&family=Cinzel:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="css/battle.css">
+    <link rel="stylesheet" href="css/battle.css?v=1.5">
+    <!-- Force reload: 2025-09-03-15:35 -->
 </head>
 <body>
     <!-- オープニング画面 -->
@@ -17,7 +18,6 @@
             <div class="game-title">
                 <h1 class="main-title">淫術拳</h1>
                 <h2 class="main-subtitle">〜封印を解かれし巫女〜</h2>
-                <h3 class="sub-title">〜体験版〜</h3>
                 <p class="title-desc">三手心理戦バトル</p>
             </div>
             
@@ -39,7 +39,7 @@
                     <span class="btn-text">ゲーム開始</span>
                     <span class="btn-key">ENTER</span>
                 </button>
-                <p class="demo-note">体験版では彩人・栗之助の2体が登場</p>
+                <p class="demo-note">心理戦で淫霊たちを制圧せよ</p>
             </div>
         </div>
     </div>
@@ -54,6 +54,14 @@
             </div>
 
             <div class="tutorial-sections">
+                <!-- ゲーム紹介 -->
+                <div class="tutorial-section">
+                    <p class="game-introduction">
+                        プレイヤーは淫術師・巫女の鈴音として、呪われた屋敷の淫霊たちと「三手の儀」（じゃんけん）で戦います。<br>
+                        負けると服を失い、勝てば幽霊を成仏させられるというシンプルながら緊張感のあるシステムです。
+                    </p>
+                </div>
+                
                 <!-- 基本ルール -->
                 <div class="tutorial-section">
                     <h3 class="section-title">基本の三手</h3>
@@ -140,7 +148,7 @@
 
             <div class="tutorial-controls">
                 <button class="tutorial-start-btn" id="tutorial-start-btn">
-                    <span class="btn-text">バトル開始</span>
+                    <span class="btn-text">あらすじへ進む</span>
                     <span class="btn-key">SPACE</span>
                 </button>
                 <p class="tutorial-note">準備はいいか？鈴音の運命はあなたの手に</p>
@@ -167,6 +175,133 @@
                     <span class="progress-current">1</span> / <span class="progress-total">4</span>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- 彩人特徴説明画面 -->
+    <div class="ayato-info-screen" id="ayato-info-screen" style="display: none;">
+        <div class="ayato-info-background"></div>
+        <div class="ayato-info-content">
+            <!-- 左側：情報パネル -->
+            <div class="ayato-info-left">
+                <div class="ayato-title">
+                    <h2 class="ayato-name">第一淫霊：彩人（あやと）</h2>
+                </div>
+
+                <div class="ayato-sections">
+                    <!-- 基本性能 -->
+                    <div class="info-section">
+                        <h3 class="section-title">基本性能</h3>
+                        <div class="section-content">
+                            <p><strong>手の確率:</strong> 石拳33%、剪刀34%、布掌33%（ほぼ均等）</p>
+                            <p><strong>バランス型:</strong> 特定の手に偏らない標準的な戦闘スタイル</p>
+                        </div>
+                    </div>
+
+                    <!-- キャラクター設定 -->
+                    <div class="info-section">
+                        <h3 class="section-title">キャラクター設定</h3>
+                        <div class="section-content">
+                            <p><strong>芸術家淫霊:</strong> 美的センスで相手を翻弄</p>
+                            <p><strong>心理戦重視:</strong> 仕草や挑発を通じた駆け引きが得意</p>
+                            <p><strong>難易度:</strong> 最初の相手として適度な難易度</p>
+                        </div>
+                    </div>
+
+                    <!-- 戦闘の特徴 -->
+                    <div class="info-section">
+                        <h3 class="section-title">戦闘の特徴</h3>
+                        <div class="section-content">
+                            <p><strong>仕草システム:</strong> 約20%の確率で次の手のヒントを出す</p>
+                            <p><strong>フェイク:</strong> 約5%の確率で仕草と違う手を出す（体験版）／15%（製品版）</p>
+                            <p><strong>挑発対応:</strong> プレイヤーの挑発に75%で反応</p>
+                            <p><strong>特殊パターン:</strong> 「美しい順序」で3手周期（石→布→剪）</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：彩人画像 -->
+            <div class="ayato-info-right">
+                <div class="ayato-portrait">
+                    <div class="ayato-image">👻</div>
+                    <div class="ayato-name-display">彩人</div>
+                    <div class="ayato-subtitle">芸術家淫霊</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作説明 -->
+        <div class="ayato-info-controls">
+            <button class="ayato-battle-btn" id="ayato-battle-btn">
+                <span class="btn-text">戦闘開始</span>
+                <span class="btn-key">SPACE</span>
+            </button>
+            <p class="ayato-info-note">相手の特徴を把握して心理戦に挑め</p>
+        </div>
+    </div>
+
+    <!-- 栗之助特徴説明画面 -->
+    <div class="ayato-info-screen" id="kurinosuke-info-screen" style="display: none;">
+        <div class="ayato-info-background"></div>
+        <div class="ayato-info-content">
+            <!-- 左側：情報パネル -->
+            <div class="ayato-info-left">
+                <div class="ayato-title">
+                    <h2 class="ayato-name">第二淫霊：栗之助（くりのすけ）</h2>
+                </div>
+
+                <div class="ayato-sections">
+                    <!-- 基本性能 -->
+                    <div class="info-section">
+                        <h3 class="section-title">基本性能</h3>
+                        <div class="section-content">
+                            <p><strong>手の確率:</strong> 石拳80%、剪刀10%、布掌10%（極端な偏り）</p>
+                            <p><strong>石拳特化型:</strong> トラウマにより同じ手を出し続ける</p>
+                        </div>
+                    </div>
+
+                    <!-- キャラクター設定 -->
+                    <div class="info-section">
+                        <h3 class="section-title">キャラクター設定</h3>
+                        <div class="section-content">
+                            <p><strong>サラリーマン幽霊:</strong> 生真面目で融通が利かない</p>
+                            <p><strong>初心者救済:</strong> 最も倒しやすい相手</p>
+                            <p><strong>感情移入要素:</strong> 悲しい過去で同情を誘う</p>
+                            <p><strong>難易度:</strong> ★★☆☆☆</p>
+                        </div>
+                    </div>
+
+                    <!-- 戦闘の特徴 -->
+                    <div class="info-section">
+                        <h3 class="section-title">戦闘の特徴</h3>
+                        <div class="section-content">
+                            <p><strong>固定パターン:</strong> 同じ手を3回連続で出す（石石石）</p>
+                            <p><strong>パニックモード:</strong> HP30%以下で手がランダムになる</p>
+                            <p><strong>仕草なし:</strong> 正直すぎて仕草を出さない</p>
+                            <p><strong>挑発無効:</strong> ビジネスライクで挑発に動じない</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 右側：栗之助画像 -->
+            <div class="ayato-info-right">
+                <div class="ayato-portrait">
+                    <div class="ayato-image">👻</div>
+                    <div class="ayato-name-display">栗之助</div>
+                    <div class="ayato-subtitle">サラリーマン幽霊</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 操作説明 -->
+        <div class="ayato-info-controls">
+            <button class="ayato-battle-btn" id="kurinosuke-battle-btn">
+                <span class="btn-text">契約開始</span>
+                <span class="btn-key">SPACE</span>
+            </button>
+            <p class="ayato-info-note">同情を誘う悲しき過去を持つサラリーマン</p>
         </div>
     </div>
 
@@ -197,7 +332,7 @@
                 </div>
             </div>
             <div class="enemy-hp">
-                <div class="hp-label">彩人（幽霊）</div>
+                <div class="hp-label">彩人（淫霊）</div>
                 <div class="hp-bar-container">
                     <div class="hp-bar enemy-hp-bar" id="enemy-hp-bar"></div>
                     <div class="hp-text">HP: <span id="enemy-hp">100</span>/100</div>
@@ -220,7 +355,7 @@
                         </div>
                         <div class="exposure-detail">
                             <span id="exposure-name">完全装備</span>
-                            <span id="exposure-desc">退魔師の正装を纏った状態</span>
+                            <span id="exposure-desc">淫術師の正装を纏った状態</span>
                         </div>
                     </div>
                 </div>
@@ -269,15 +404,9 @@
                         </button>
                     </div>
                     <div class="action-buttons-column">
-                        <button id="reveal" class="action-btn reveal-btn primary">公開</button>
-                        <button id="provoke" class="action-btn provoke-btn">
-                            <span>P: 挑発</span>
-                            <span class="count">(<span id="provoke-count">3</span>)</span>
-                        </button>
-                        <button id="rewind" class="action-btn rewind-btn" style="display:none">
-                            <span>R: 読み直し</span>
-                            <span class="count">(<span id="rewind-count">1</span>)</span>
-                        </button>
+                        <button id="reveal" class="action-btn reveal-btn primary">Enter: 公開</button>
+                        <button id="provoke" class="action-btn provoke-btn">P: 挑発 (<span id="provoke-count">3</span>)</button>
+                        <button id="rewind" class="action-btn rewind-btn" style="display:none">R: 読み直し (<span id="rewind-count">1</span>)</button>
                     </div>
                 </div>
                 <div class="selected-hand-display" id="selected-hand-display">選択: なし</div>
@@ -316,9 +445,6 @@
                     <button id="restart" class="restart-btn">もう一度</button>
                     <button id="next-ghost" class="next-btn">次に進む</button>
                 </div>
-                <div class="demo-info">
-                    <p>🎮 販売版では8体の幽霊＋フェイク最大20%の真の心理戦！</p>
-                </div>
             </div>
         </div>
     </div>
@@ -352,19 +478,6 @@
         </div>
     </div>
 
-    <!-- 体験版終了画面 -->
-    <div class="demo-ending-screen" id="demo-ending-screen" style="display: none;">
-        <div class="demo-ending-background"></div>
-        <div class="demo-ending-content">
-            <div class="ending-text-container">
-                <div id="ending-text" class="ending-text"></div>
-            </div>
-            <div class="ending-controls" id="ending-controls" style="display: none;">
-                <button id="restart-demo" class="ending-btn">もう一度体験版を遊ぶ</button>
-                <a href="#" class="ending-btn wishlist-btn">製品版をウィッシュリストに追加</a>
-            </div>
-        </div>
-    </div>
 
     <script src="js/csv-loader.js"></script>
     <script src="js/battle.js"></script>
