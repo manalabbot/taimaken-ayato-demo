@@ -168,6 +168,18 @@ class BattleSystem {
             return taroHand;
         }
         
+        // 双子戦の手決定処理
+        if (this.gameState.currentGhost === 'twins') {
+            const twinsHand = this.decideTwinsHand();
+            
+            // ツインアタック中の表示
+            if (this.twinAttackActive) {
+                console.log(`双子戦: ツインアタック中！残り${this.twinAttackRounds}回 - ${twinsHand}を選択`);
+            }
+            
+            return twinsHand;
+        }
+        
         const ayatoData = window.csvLoader.getAyatoData();
         let probs = {
             stone: ayatoData.base_stone || 0.33,
@@ -301,6 +313,45 @@ class BattleSystem {
             this.gameState.rewindPenalty = false;
         }
 
+        // 双子戦の特殊処理
+        if (this.gameState.currentGhost === 'twins') {
+            // ツインアタックのカウンター更新
+            this.twinAttackCounter++;
+            
+            // ツインアタック発動判定（5ラウンドごと）
+            if (this.twinAttackCounter % 5 === 0 && !this.twinAttackActive) {
+                this.twinAttackActive = true;
+                this.twinAttackRounds = 2; // 2回連続
+                roundResult.message += ' 【ツインアタック発動！2回連続攻撃開始】';
+                console.log('双子戦: ツインアタック発動！2回連続攻撃開始');
+            }
+            
+            // ツインアタック中の処理
+            if (this.twinAttackActive) {
+                this.twinAttackRounds--;
+                if (this.twinAttackRounds <= 0) {
+                    this.twinAttackActive = false;
+                    console.log('双子戦: ツインアタック終了');
+                }
+            }
+            
+            // 人格交代処理（淫霊が負けた時に交代、ただしツインアタック中は交代しない）
+            if (result === 'player_win' && !this.twinAttackActive) {
+                // プレイヤーが勝利（=淫霊が敗北）した場合、淫霊（双子）の人格を交代
+                this.currentTwin = this.currentTwin === 'yoma' ? 'inma' : 'yoma';
+                const newPersona = this.currentTwin === 'yoma' ? '陽真' : '陰真';
+                console.log(`双子戦: 淫霊が負けたため人格交代発生！${newPersona}モードに切り替わりました`);
+                
+                // UIを更新
+                if (window.gameController) {
+                    window.gameController.updateGhostUI();
+                }
+                
+                // メッセージに人格交代の情報を追加
+                roundResult.message += ` （${newPersona}に交代！）`;
+            }
+        }
+        
         // 太郎の適応型AI用状態更新
         console.log('processRoundResult - currentGhost:', this.gameState.currentGhost, 'enemyData.id:', this.enemyData?.id);
         if (this.gameState.currentGhost === 'taro') {
@@ -586,6 +637,80 @@ class BattleSystem {
         }
     }
     
+    // 双子戦の手決定
+    decideTwinsHand() {
+        const twinsData = window.csvLoader.getTwinsData();
+        const currentMode = this.currentTwin || 'yoma';
+        
+        // 現在の人格（陽真・陰真）に応じた基本確率
+        let probs = { ...twinsData.handProbability[currentMode] };
+        console.log(`双子戦: ${currentMode}モードの基本確率`, probs);
+        
+        // 仕草効果（50%確率で発生、仕草混乱システム）
+        if (this.gameState.currentTell && Math.random() < twinsData.tellRate) {
+            let tellTarget = this.gameState.currentTell.target;
+            
+            // 仕草混乱判定（50%で両方の人格が違うヒントを出す）
+            const isConfusion = Math.random() < 0.5;
+            if (isConfusion) {
+                // 反対の人格の仕草を表示
+                const oppositeModeData = twinsData.handProbability[currentMode === 'yoma' ? 'inma' : 'yoma'];
+                const oppositeMainHand = Object.keys(oppositeModeData).reduce((a, b) => 
+                    oppositeModeData[a] > oppositeModeData[b] ? a : b);
+                tellTarget = oppositeMainHand;
+                console.log(`双子戦: 仕草混乱発生！${currentMode === 'yoma' ? '陰真' : '陽真'}の仕草が混入: ${tellTarget}`);
+            }
+            
+            const currentFakeRate = twinsData.fakeRate[currentMode];
+            
+            // フェイク判定（陽真15%、陰真25%）
+            if (Math.random() < currentFakeRate) {
+                // フェイク：別の手を強化
+                const otherHands = ['stone', 'scissors', 'paper'].filter(h => h !== tellTarget);
+                const fakeTarget = otherHands[Math.floor(Math.random() * otherHands.length)];
+                probs[fakeTarget] += 0.15;
+                this.gameState.wasFake = true;
+                this.gameState.stats.fakeCount++;
+                console.log(`双子戦: フェイク発生！仕草は${tellTarget}だが実際は${fakeTarget}を強化 (${currentMode === 'yoma' ? '陽真' : '陰真'}モード、フェイク率${Math.round(currentFakeRate * 100)}%)`);
+            } else {
+                // 通常：仕草通りの手を強化
+                probs[tellTarget] += 0.15;
+                console.log(`双子戦: 仕草通り${tellTarget}を強化 (${currentMode === 'yoma' ? '陽真' : '陰真'}モード) ${isConfusion ? '(混乱あり)' : '(通常)'}`);
+            }
+        }
+        
+        // 挑発効果（陽真80%、陰真30%の反応率）
+        if (this.gameState.isProvoked && this.gameState.provokedHand) {
+            const provokeResponseRate = twinsData.provokeResponse[currentMode];
+            if (Math.random() < provokeResponseRate) {
+                probs[this.gameState.provokedHand] += 0.20;
+                console.log(`双子戦: ${currentMode}が挑発に反応！${this.gameState.provokedHand}を強化`);
+            } else {
+                console.log(`双子戦: ${currentMode}は挑発を無視`);
+            }
+        }
+        
+        // 確率を正規化
+        const total = Object.values(probs).reduce((a, b) => a + b, 0);
+        Object.keys(probs).forEach(key => {
+            probs[key] /= total;
+        });
+        
+        // 手を選択
+        const rand = Math.random();
+        let cumulative = 0;
+        
+        for (const [hand, prob] of Object.entries(probs)) {
+            cumulative += prob;
+            if (rand <= cumulative) {
+                console.log(`双子戦: ${currentMode}モードで${hand}を選択 (確率: ${prob.toFixed(2)})`);
+                return hand;
+            }
+        }
+        
+        return 'stone'; // フォールバック
+    }
+    
     // 幽霊を切り替える
     switchGhost(ghostId) {
         let ghostData = null;
@@ -595,6 +720,21 @@ class BattleSystem {
             ghostData = window.csvLoader.getAyatoData();
         } else if (ghostId === 'taro') {
             ghostData = window.csvLoader.getTaroData();
+        } else if (ghostId === 'twins') {
+            ghostData = window.csvLoader.getTwinsData();
+            // 双子戦用の初期設定
+            this.currentTwin = 'yoma'; // 初期は陽真モード
+            this.twinsLoseCount = 0; // 連続負け回数
+            this.twinAttackCounter = 0; // ツインアタック用カウンター
+            this.twinAttackActive = false; // ツインアタック発動中フラグ
+            this.twinAttackRounds = 0; // ツインアタック残りラウンド数
+        } else if (ghostId === 'sakuya') {
+            ghostData = {
+                name: '朔夜',
+                handProbability: { stone: 0.4, scissors: 0.3, paper: 0.3 },
+                tellRate: 0.6,
+                fakeRate: 0.2
+            };
         }
         
         if (ghostData) {
@@ -603,7 +743,7 @@ class BattleSystem {
             // 栗之助パターン用変数リセット
             this.kurinosukeStoneCount = 0;
             this.kurinosukeInStonePattern = false;
-            console.log(`淫霊を${ghostData.name}に切り替えました`);
+            console.log(`淫霊を${ghostData ? ghostData.name : ghostId}に切り替えました`);
         } else {
             console.error('淫霊データが見つかりません:', ghostId);
         }

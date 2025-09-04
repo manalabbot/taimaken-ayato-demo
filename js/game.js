@@ -12,6 +12,8 @@ class GameController {
         this.isKurinosukeInfoScreen = false; // 栗之助特徴説明画面フラグ
         this.isTaroStory = false; // 太郎戦ストーリー画面フラグ
         this.isTaroInfoScreen = false; // 太郎特徴説明画面フラグ
+        this.isTwinsStory = false; // 双子戦ストーリー画面フラグ
+        this.isTwinsInfoScreen = false; // 双子特徴説明画面フラグ
         this.currentStoryScene = 0; // 現在のストーリーシーン
         
         // ストーリーシーンデータ
@@ -523,6 +525,55 @@ class GameController {
                 '4-5': '「あと一歩で契約完了だ」',
                 '5-defeat': '「契約満了。君の完敗だ」'
             };
+        } else if (this.currentGhost === 'twins') {
+            // 双子戦の鈴音のセリフ
+            suzuneDialogues = {
+                '1-2': '「ちょっと...勝手に脱がさないで...！」',
+                '2-3': '「二人がかりなんてずるい...！」',
+                '3-4': '「もうお店じゃないのよ...！」',
+                '4-5': '「試着室じゃないんだから...！」',
+                '5-defeat': '「まるで...マネキンにされたみたい...」'
+            };
+            // 双子は特殊処理（2人同時セリフ）
+            enemyName = '双子';
+            const yomaDialogues = {
+                '1-2': '「素材感チェック！コットン100％？いいね！」',
+                '2-3': '「俺が前から、陰真が後ろからチェックする！」',
+                '3-4': '「店じゃなくても品質チェックは大事！」',
+                '4-5': '「ここなら遠慮なくじっくり見れる！」',
+                '5-defeat': '「生きたマネキン！最高の展示品！」'
+            };
+            const inmaDialogues = {
+                '1-2': '「縫製も丁寧...国内ブランドかしら」',
+                '2-3': '「全角度からの検品は基本中の基本よ」',
+                '3-4': '「むしろプライベートな査定の方が正確だわ」',
+                '4-5': '「試着室の狭い鏡より、ずっと良い環境ね」',
+                '5-defeat': '「動くマネキン...新商品として売れそう」'
+            };
+            
+            // 双子戦専用処理
+            const suzuneText = suzuneDialogues[dialogueKey];
+            const yomaText = yomaDialogues[dialogueKey];
+            const inmaText = inmaDialogues[dialogueKey];
+            
+            if (suzuneText && yomaText && inmaText) {
+                // 鈴音のセリフを先に表示
+                this.addLog(`鈴音: ${suzuneText}`, 'special');
+                
+                // 少し遅らせて陽真のセリフを表示
+                setTimeout(() => {
+                    this.addLog(`陽真: ${yomaText}`, 'enemy');
+                }, 1500);
+                
+                // さらに少し遅らせて陰真のセリフを表示
+                setTimeout(() => {
+                    this.addLog(`陰真: ${inmaText}`, 'enemy');
+                }, 3000);
+                
+                // 表示済みフラグを設定
+                this.exposureDialogueShown[dialogueKey] = true;
+            }
+            return; // 双子戦は特殊処理なので、通常の処理をスキップ
         } else {
             // 彩人戦の鈴音のセリフ（デフォルト）
             suzuneDialogues = {
@@ -583,7 +634,8 @@ class GameController {
         
         // 敌の名前を動的に取得
         const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : 
-                         this.currentGhost === 'taro' ? '太郎' : '彩人';
+                         this.currentGhost === 'taro' ? '太郎' : 
+                         this.currentGhost === 'twins' ? (window.battleSystem.currentTwin === 'yoma' ? '陽真' : '陰真') : '彩人';
         this.addLog(`鈴音: ${handNames[state.selectedPlayerHand]} vs ${enemyName}: ${handNames[this.currentEnemyHand]}`, 'system');
         
         // 読み直しフェーズへ
@@ -643,8 +695,23 @@ class GameController {
     // ラウンド結果処理
     processRound(isRewind) {
         const state = window.battleSystem.getState();
+        
+        // ツインアタック発動チェック
+        const isTwinAttack = this.currentGhost === 'twins' && window.battleSystem.twinAttackActive;
+        
+        if (isTwinAttack && window.battleSystem.twinAttackRounds > 0) {
+            // ツインアタック中：2回連続攻撃
+            this.processTwinAttackRounds(state.selectedPlayerHand, isRewind);
+        } else {
+            // 通常の1回処理
+            this.processSingleRound(state.selectedPlayerHand, isRewind);
+        }
+    }
+    
+    // 通常の1回ラウンド処理
+    processSingleRound(playerHand, isRewind) {
         const result = window.battleSystem.processRoundResult(
-            state.selectedPlayerHand,
+            playerHand,
             this.currentEnemyHand,
             isRewind
         );
@@ -717,6 +784,136 @@ class GameController {
             }, 1500);
         }
     }
+    
+    // ツインアタック時の1ラウンド内2回攻撃処理
+    processTwinAttackRounds(playerHand, isRewind) {
+        console.log('ツインアタック開始！1ラウンド内で2回連続攻撃処理');
+        this.addLog('【ツインアタック発動】双子が1ラウンド内で2回連続攻撃！', 'special');
+        
+        const handNames = { stone: '石拳', scissors: '剪刀', paper: '布掌' };
+        
+        // 1回目の敵の手を決定
+        const enemyHand1 = window.battleSystem.decideEnemyHand();
+        const enemyName1 = window.battleSystem.currentTwin === 'yoma' ? '陽真' : '陰真';
+        
+        // 2回目の敵の手を決定（人格が変わる可能性があるので再取得）
+        const enemyHand2 = window.battleSystem.decideEnemyHand();
+        const enemyName2 = window.battleSystem.currentTwin === 'yoma' ? '陽真' : '陰真';
+        
+        // 両方の結果を判定
+        const result1 = this.judgeRound(playerHand, enemyHand1);
+        const result2 = this.judgeRound(playerHand, enemyHand2);
+        
+        // 結果を表示
+        this.addLog(`1回目: 鈴音:${handNames[playerHand]} vs ${enemyName1}:${handNames[enemyHand1]} → ${this.getResultText(result1)}`, 'system');
+        this.addLog(`2回目: 鈴音:${handNames[playerHand]} vs ${enemyName2}:${handNames[enemyHand2]} → ${this.getResultText(result2)}`, 'system');
+        
+        // 総合結果とダメージ計算
+        const playerWins = (result1 === 'player_win' ? 1 : 0) + (result2 === 'player_win' ? 1 : 0);
+        const enemyWins = (result1 === 'enemy_win' ? 1 : 0) + (result2 === 'enemy_win' ? 1 : 0);
+        
+        let totalDamage = 0;
+        let overallResult = 'draw';
+        let resultMessage = '';
+        
+        if (enemyWins === 2) {
+            // 2敗：大ダメージ
+            totalDamage = (window.battleSystem.config.BASE_DAMAGE || 20) * 2;
+            overallResult = 'enemy_win';
+            resultMessage = '2回とも負け！大ダメージを受けた！';
+        } else if (enemyWins === 1 && playerWins === 1) {
+            // 1勝1敗：通常ダメージ
+            totalDamage = window.battleSystem.config.BASE_DAMAGE || 20;
+            overallResult = 'mixed';
+            resultMessage = '1勝1敗！通常ダメージ';
+        } else if (playerWins === 2) {
+            // 2勝：ダメージなし、逆に敵にダメージ？
+            totalDamage = 0;
+            overallResult = 'player_win';
+            resultMessage = '2回とも勝利！敵にダメージを与えた！';
+            // 敵HPを減らす
+            window.battleSystem.gameState.enemyHP = Math.max(0, window.battleSystem.gameState.enemyHP - 10);
+        } else {
+            // 2引き分け
+            overallResult = 'draw';
+            resultMessage = '2回とも引き分け';
+        }
+        
+        // ダメージ適用
+        if (totalDamage > 0) {
+            window.battleSystem.gameState.playerHP = Math.max(0, window.battleSystem.gameState.playerHP - totalDamage);
+            this.addLog(`ダメージ: ${totalDamage}`, 'damage');
+        }
+        
+        this.addLog(`ツインアタック結果: ${resultMessage}`, overallResult === 'enemy_win' ? 'enemy-action' : 
+                                                                overallResult === 'player_win' ? 'player-action' : 'system');
+        
+        // POV処理（2敗時のみ）
+        if (overallResult === 'enemy_win') {
+            const currentExposureLevel = window.battleSystem.getState().exposureLevel;
+            const nextExposureLevel = Math.min(currentExposureLevel + 1, 5);
+            
+            setTimeout(() => {
+                if (window.defeatPOVSystem) {
+                    window.defeatPOVSystem.enterPOVMode(currentExposureLevel, nextExposureLevel);
+                }
+            }, 2000);
+        }
+        
+        // ツインアタック終了処理
+        window.battleSystem.twinAttackRounds--;
+        if (window.battleSystem.twinAttackRounds <= 0) {
+            window.battleSystem.twinAttackActive = false;
+            console.log('ツインアタック完了');
+        }
+        
+        // リセット処理
+        this.isRevealPhase = false;
+        this.elements.rewindBtn.style.display = 'none';
+        this.elements.revealBtn.disabled = false;
+        this.elements.handButtons.forEach(btn => {
+            btn.classList.remove('selected');
+        });
+        this.elements.selectedHandDisplay.textContent = '選択: なし';
+        
+        // UI更新
+        setTimeout(() => {
+            this.updateUI();
+        }, 100);
+        
+        // ゲーム終了判定
+        const endResult = window.battleSystem.checkGameEnd();
+        if (endResult.ended) {
+            this.showResult(endResult);
+        } else {
+            setTimeout(() => {
+                this.startNewRound();
+            }, 1500);
+        }
+    }
+    
+    // じゃんけん結果判定（battleSystemから独立）
+    judgeRound(playerHand, enemyHand) {
+        if (playerHand === enemyHand) return 'draw';
+        
+        const winConditions = {
+            stone: 'scissors',
+            scissors: 'paper', 
+            paper: 'stone'
+        };
+        
+        return winConditions[playerHand] === enemyHand ? 'player_win' : 'enemy_win';
+    }
+    
+    // 結果テキスト取得
+    getResultText(result) {
+        switch(result) {
+            case 'player_win': return '鈴音の勝ち';
+            case 'enemy_win': return '敵の勝ち';
+            case 'draw': return '引き分け';
+            default: return '不明';
+        }
+    }
 
     // 新ラウンド開始
     startNewRound() {
@@ -760,6 +957,27 @@ class GameController {
             } else {
                 this.elements.currentTell.textContent = '仕草なし（完全ランダム）';
                 this.addLog('太郎は仕草を見せない...完全ランダム', 'system');
+            }
+        } else if (this.currentGhost === 'twins') {
+            // 双子の場合は人格に応じた仕草表示
+            if (tell) {
+                const handNames = {
+                    stone: '石拳',
+                    scissors: '剪刀',
+                    paper: '布掌'
+                };
+                
+                // 現在の人格を取得
+                const currentMode = window.battleSystem.currentTwin || 'yoma';
+                const currentPersona = currentMode === 'yoma' ? '陽真' : '陰真';
+                const fakeRate = currentMode === 'yoma' ? '15%' : '25%';
+                
+                this.elements.currentTell.textContent = 
+                    `仕草: ${tell.name} ${tell.icon} → ${handNames[tell.target]} +15%/フェイク${fakeRate}`;
+                this.addLog(`${currentPersona}の仕草: ${tell.name} - ${tell.desc} (混乱率50%)`, 'system');
+            } else {
+                this.elements.currentTell.textContent = '仕草なし（完全ランダム）';
+                this.addLog('双子は仕草を見せない...完全ランダム', 'system');
             }
         } else {
             // 彩人の場合は通常の仕草表示
@@ -892,7 +1110,8 @@ class GameController {
             console.log('プレイヤー特殊勝利処理');
             this.elements.resultTitle.textContent = '奇跡の勝利！';
             const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : 
-                             this.currentGhost === 'taro' ? '太郎' : '彩人';
+                             this.currentGhost === 'taro' ? '太郎' :
+                             this.currentGhost === 'twins' ? '双子' : '彩人';
             this.elements.resultText.textContent = `限界状態から逆転勝利！鈴音の気迫が${enemyName}を圧倒した！`;
             this.addVictoryBonus('comeback_victory');
         } else if (result.winner === 'enemy') {
@@ -914,7 +1133,8 @@ class GameController {
             setTimeout(() => {
                 this.elements.resultTitle.textContent = '敗北...';
                 const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : 
-                             this.currentGhost === 'taro' ? '太郎' : '彩人';
+                             this.currentGhost === 'taro' ? '太郎' :
+                             this.currentGhost === 'twins' ? '双子' : '彩人';
                 this.elements.resultText.textContent = `${enemyName}に敗れた...（${result.reason}）`;
             }, 100);
         } else if (result.winner === 'enemy_special') {
@@ -925,7 +1145,8 @@ class GameController {
             
             this.elements.resultTitle.textContent = '屈辱的敗北...';
             const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : 
-                             this.currentGhost === 'taro' ? '太郎' : '彩人';
+                             this.currentGhost === 'taro' ? '太郎' :
+                             this.currentGhost === 'twins' ? '双子' : '彩人';
             this.elements.resultText.textContent = `限界露出で敗北...鈴音は恥ずかしい格奿のまま${enemyName}に屈服した...`;
             
             // 屈辱的敗北の場合、特殊処理フラグを設定
@@ -1280,6 +1501,646 @@ class GameController {
         console.log(`太郎戦ストーリーシーン ${this.currentStoryScene + 1} 表示`);
     }
     
+    // 双子戦ストーリー表示
+    showTwinsStory() {
+        console.log('双子戦ストーリー開始');
+        
+        // 画面状態の設定
+        this.isTwinsStory = true;
+        this.isStoryScreen = true;  // ストーリー画面フラグを有効にする
+        this.currentStoryScene = 0;
+        
+        // 他の画面フラグをリセット
+        this.isOpeningScreen = false;
+        this.isTutorialScreen = false;
+        this.isAyatoInfoScreen = false;
+        this.isKurinosukeInfoScreen = false;
+        this.isTaroInfoScreen = false;
+        
+        // 画面の表示/非表示
+        this.elements.battleScreen.style.display = 'none';
+        if (this.elements.storyScreen) {
+            this.elements.storyScreen.style.display = 'flex';
+        }
+        
+        // 双子戦ストーリーシーンデータを定義
+        this.twinsStoryScenes = [
+            {
+                background: 'basement_room',
+                text: [
+                    "太郎「本当の勝負ができて...嬉しかった」",
+                    "太郎「次は地下3階...双子の陽真と陰真だ」",
+                    "太郎「元アパレル店員で...二人同時に相手することになる」",
+                    "太郎「気をつけて...ありがとう、鈴音さん」"
+                ]
+            },
+            {
+                background: 'mansion_stairs',
+                text: [
+                    "鈴音「地下3階...香水の匂いが強い」",
+                    "鈴音「ここは...洋服屋さんみたいね...」"
+                ]
+            },
+            {
+                background: 'boutique_floor',
+                text: [
+                    "陽真「いらっしゃいませー！」",
+                    "陰真「...その服、ひどい状態ね」",
+                    "陽真「俺は陽真、こっちは双子の弟・陰真」",
+                    "陽真「生前はセレクトショップの店員だった」",
+                    "陰真「ある日、VIP客と服の趣味で対立して」",
+                    "陰真「三手で決めましょうと言われた」",
+                    "陽真「二人で交代しながら戦ったけど...」",
+                    "陽真「息が合わなくて負けた」",
+                    "陽真「店は潰れ、俺たちは心労で...」",
+                    "鈴音「それで淫霊に...」",
+                    "陰真「その前に、その服どうにかしましょう」",
+                    "陰真「プロとして見過ごせない」",
+                    "陽真「そうだ！新しい服プレゼントする！」",
+                    "陽真「好きなの選んで！」",
+                    "鈴音「淫霊からの贈り物...？」",
+                    "鈴音はカジュアルセットを選んだようだ。",
+                    "陽真「安心して！ただの服だよ」",
+                    "陽真「でも三手で負けたら...」",
+                    "陰真「一枚ずつ、丁寧に脱がせてあげる」",
+                    "陽真「さあ、ファッションショーの始まりだ！」",
+                    "陰真「あなたのコーディネート、解体させてもらうわ」",
+                    "鈴音「二人同時なんて...でも負けない！」"
+                ]
+            }
+        ];
+        
+        // 最初のシーン表示
+        this.displayTwinsStoryScene();
+        
+        console.log('双子戦ストーリーシーン表示完了');
+    }
+
+    // 朔夜戦ストーリー表示
+    showSakuyaStory() {
+        console.log('朔夜戦ストーリー開始');
+        
+        // 画面状態の設定
+        this.isSakuyaStory = true;
+        this.isStoryScreen = true;
+        this.currentStoryScene = 0;
+        
+        // 他の画面フラグをリセット
+        this.isOpeningScreen = false;
+        this.isTutorialScreen = false;
+        this.isAyatoInfoScreen = false;
+        this.isKurinosukeInfoScreen = false;
+        this.isTaroInfoScreen = false;
+        this.isTwinsStory = false;
+        
+        // 画面の表示/非表示
+        this.elements.battleScreen.style.display = 'none';
+        if (this.elements.storyScreen) {
+            this.elements.storyScreen.style.display = 'flex';
+        }
+        
+        // 朔夜戦ストーリーシーンデータを定義
+        this.sakuyaStoryScenes = [
+            {
+                background: 'boutique_floor',
+                text: [
+                    "陽真「最高のコーディネートだった...」",
+                    "陰真「完璧な解体作業でしたね」",
+                    "陰真「でも、地下4階の朔夜（さくや）先生は...別格よ」",
+                    "陽真「あの人、元産婦人科医で...」",
+                    "陽真「相手の状態を診断しながら戦うんだ」",
+                    "陰真「私たちより、ずっと危険...」",
+                    "陰真「気をつけて...」",
+                    "双子の姿が薄れ、完全に消滅した。"
+                ]
+            },
+            {
+                background: 'mansion_stairs',
+                text: [
+                    "鈴音「地下4階...消毒液の匂い？」",
+                    "鈴音「まるで病院みたい...」",
+                    "鈴音「白い廊下が続いてる...」",
+                    "診察室のような部屋に到着した。"
+                ]
+            },
+            {
+                background: 'hospital_room',
+                text: [
+                    "朔夜「新しい患者さんですね」",
+                    "朔夜「私は朔夜、元産婦人科医です」"
+                ]
+            },
+            {
+                background: 'hospital_room',
+                text: [
+                    "鈴音「産婦人科医...？なぜ淫霊に？」",
+                    "朔夜「生前、私は天才と呼ばれていました」",
+                    "朔夜「しかし、ある手術の成否を...」",
+                    "朔夜「三手で決める狂気に取り憑かれたのです」",
+                    "鈴音「手術を...三手で？」",
+                    "朔夜「石拳なら成功、布掌なら失敗」",
+                    "朔夜「患者の運命を、運に委ねていた」",
+                    "朔夜「最後は自分自身を実験台にして...」",
+                    "朔夜「三手に負けて、死を選びました」",
+                    "鈴音「それは...狂っています」",
+                    "朔夜「狂気？いいえ、これは科学です」",
+                    "朔夜「あなたのHP、現在どれくらいですか？」",
+                    "朔夜「ふむ...診断によると、まだえちえち指数低い体ですね」"
+                ]
+            },
+            {
+                background: 'hospital_room',
+                text: [
+                    "朔夜「では、診察を始めましょう」",
+                    "朔夜「あなたの淫乱状態に応じて」",
+                    "朔夜「私の処方も変わります」",
+                    "鈴音「診察...？これは戦いよ！」",
+                    "朔夜「HPが高い時は積極的治療...石拳」",
+                    "朔夜「HPが低い時は緩和ケア...布掌」",
+                    "朔夜「医学的に、完璧な戦略です」",
+                    "朔夜「さあ、診断開始です」"
+                ]
+            }
+        ];
+        
+        // 最初のシーン表示
+        this.displaySakuyaStoryScene();
+        
+        console.log('朔夜戦ストーリーシーン表示完了');
+    }
+
+    // 朔夜戦ストーリーシーン表示
+    displaySakuyaStoryScene() {
+        const scene = this.sakuyaStoryScenes[this.currentStoryScene];
+        if (!scene) return;
+        
+        // 背景設定
+        this.elements.storyScreen.className = 'story-screen story-' + scene.background;
+        
+        // タイプライター効果でテキスト表示
+        this.typewriterEffect(scene.text);
+        
+        console.log(`朔夜戦ストーリーシーン ${this.currentStoryScene + 1} 表示`);
+    }
+
+    // 朔夜特徴説明画面表示
+    showSakuyaInfo() {
+        console.log('=== 朔夜特徴説明画面表示開始 ===');
+        
+        // フラグ更新
+        this.isStoryScreen = false;
+        this.isSakuyaStory = false;
+        this.isSakuyaInfoScreen = true;
+        
+        // ストーリー画面を非表示
+        if (this.elements.storyScreen) {
+            this.elements.storyScreen.style.display = 'none';
+        }
+        
+        // 朔夜特徴説明画面を動的に生成
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'ayato-info-screen';
+        infoContainer.id = 'sakuya-info-screen';
+        infoContainer.innerHTML = `
+            <div class="ayato-info-background"></div>
+            <div class="ayato-info-content">
+                <!-- 左側：情報パネル -->
+                <div class="ayato-info-left">
+                    <div class="ayato-title">
+                        <h2 class="ayato-name">第五淫霊：朔夜（さくや）</h2>
+                    </div>
+
+                    <div class="ayato-sections">
+                        <!-- 基本性能 -->
+                        <div class="info-section">
+                            <h3 class="section-title">基本性能</h3>
+                            <div class="section-content">
+                                <p><strong>HP70%以上:</strong> 石拳60%、剪刀30%、布掌10%</p>
+                                <p><strong>HP40-70%:</strong> 各33%（バランス）</p>
+                                <p><strong>HP40%以下:</strong> 石拳10%、剪刀30%、布掌60%</p>
+                                <p><strong>適応型:</strong> プレイヤーのHP依存</p>
+                            </div>
+                        </div>
+
+                        <!-- キャラクター設定 -->
+                        <div class="info-section">
+                            <h3 class="section-title">キャラクター設定</h3>
+                            <div class="section-content">
+                                <p><strong>医師幽霊:</strong> 相手の状態を「診断」して戦う</p>
+                                <p><strong>分析的戦闘:</strong> データに基づく理詰めの戦い</p>
+                                <p><strong>狂気の天才:</strong> 冷静と狂気が混在</p>
+                                <p><strong>難易度:</strong> ★★★★★</p>
+                            </div>
+                        </div>
+
+                        <!-- 戦闘の特徴 -->
+                        <div class="info-section">
+                            <h3 class="section-title">戦闘の特徴</h3>
+                            <div class="section-content">
+                                <p><strong>診断システム:</strong> 毎ターン相手の状態を分析</p>
+                                <p><strong>手術モード:</strong> 3連勝すると「執刀」（次は必殺の一手）</p>
+                                <p><strong>カルテ記録:</strong> 過去の対戦データを参照</p>
+                                <p><strong>フェイク:</strong> 25%（誤診として）</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右側：朔夜画像 -->
+                <div class="ayato-info-right">
+                    <div class="ayato-portrait">
+                        <div class="ayato-image">👩‍⚕️</div>
+                        <div class="ayato-name-display">朔夜</div>
+                        <div class="ayato-subtitle">元産婦人科医淫霊</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作説明 -->
+            <div class="ayato-info-controls">
+                <button class="ayato-battle-btn" id="sakuya-battle-btn">
+                    <span class="btn-text">診察開始</span>
+                    <span class="btn-key">SPACE</span>
+                </button>
+                <p class="ayato-info-note">最高難易度の狂気の医師</p>
+            </div>
+        `;
+        
+        // 既存の画面を非表示にして、新しい画面を追加
+        document.body.appendChild(infoContainer);
+        
+        // イベントリスナーを追加
+        const battleBtn = document.getElementById('sakuya-battle-btn');
+        if (battleBtn) {
+            battleBtn.addEventListener('click', () => {
+                this.startSakuyaBattle();
+            });
+        }
+        
+        // SPACEキーでも開始できるように
+        const spaceHandler = (e) => {
+            if (e.key === ' ' && this.isSakuyaInfoScreen) {
+                e.preventDefault();
+                this.startSakuyaBattle();
+                document.removeEventListener('keydown', spaceHandler);
+            }
+        };
+        document.addEventListener('keydown', spaceHandler);
+        
+        console.log('朔夜特徴説明画面表示完了');
+    }
+
+    // 朔夜戦開始
+    startSakuyaBattle() {
+        console.log('朔夜戦開始処理');
+        
+        // フラグ更新
+        this.isSakuyaInfoScreen = false;
+        
+        // 朔夜特徴説明画面を削除
+        const infoScreen = document.getElementById('sakuya-info-screen');
+        if (infoScreen) {
+            infoScreen.remove();
+        }
+        
+        // バトル画面を表示
+        if (this.elements.battleScreen) {
+            this.elements.battleScreen.style.display = 'block';
+        }
+        
+        // ゲーム状態をリセット
+        if (window.battleSystem) {
+            window.battleSystem.resetGame();
+            window.battleSystem.switchGhost('sakuya');
+        }
+        
+        // 敵名表示を更新
+        const enemyNameElements = document.querySelectorAll('.enemy-wins');
+        enemyNameElements.forEach(elem => {
+            elem.innerHTML = '朔夜: <span id="enemy-wins">0</span>勝';
+        });
+        
+        // HPラベルも更新
+        const enemyHpLabel = document.querySelector('.enemy-hp .hp-label');
+        if (enemyHpLabel) {
+            enemyHpLabel.textContent = '朔夜（淫霊）';
+        }
+        
+        // 朔夜戦用のログ表示
+        this.elements.logContent.innerHTML = '<p class="log-entry system">朔夜との診察開始...</p>';
+        
+        // UI更新とラウンド開始
+        this.updateUI();
+        this.startNewRound();
+        
+        console.log('朔夜戦開始完了');
+    }
+    
+    // 双子戦用ストーリーシーン表示
+    displayTwinsStoryScene() {
+        const scene = this.twinsStoryScenes[this.currentStoryScene];
+        if (!scene) return;
+        
+        // 3番目のシーン（服装選択シーン）の表示後に服装リセット処理
+        if (this.currentStoryScene === 2) { // 0-indexedなので2が3番目
+            // 服装変更処理：露出レベルを1にリセット
+            if (window.battleSystem) {
+                window.battleSystem.gameState.exposureLevel = 1;
+                console.log('双子戦: 服装変更により露出レベルを1にリセット');
+            }
+        }
+        
+        // 背景設定
+        this.elements.storyScreen.className = 'story-screen story-' + scene.background;
+        
+        // タイプライター効果でテキスト表示
+        this.typewriterEffect(scene.text);
+        
+        console.log(`双子戦ストーリーシーン ${this.currentStoryScene + 1} 表示`);
+    }
+    
+    // 双子特徴説明画面を表示
+    showTwinsInfo() {
+        console.log('=== 双子特徴説明画面表示開始 ===');
+        
+        // フラグ更新
+        this.isStoryScreen = false;
+        this.isTwinsStory = false;
+        this.isTwinsInfoScreen = true;
+        
+        // ストーリー画面を非表示
+        if (this.elements.storyScreen) {
+            this.elements.storyScreen.style.display = 'none';
+        }
+        
+        // 双子特徴説明画面を動的に生成（他の淫霊と同じUI）
+        const infoContainer = document.createElement('div');
+        infoContainer.className = 'ayato-info-screen';
+        infoContainer.id = 'twins-info-screen';
+        infoContainer.innerHTML = `
+            <div class="ayato-info-background"></div>
+            <div class="ayato-info-content">
+                <!-- 左側：情報パネル -->
+                <div class="ayato-info-left">
+                    <div class="ayato-title">
+                        <h2 class="ayato-name">第四淫霊：陽真・陰真（ようま・いんま）</h2>
+                    </div>
+
+                    <div class="ayato-sections">
+                        <!-- 基本性能 -->
+                        <div class="info-section">
+                            <h3 class="section-title">基本性能</h3>
+                            <div class="section-content">
+                                <p><strong>陽真モード:</strong> 石拳70%、剪刀20%、布掌10%（攻撃型）</p>
+                                <p><strong>陰真モード:</strong> 石拳10%、剪刀20%、布掌70%（防御型）</p>
+                                <p><strong>切替型:</strong> 勝敗で人格が交代</p>
+                            </div>
+                        </div>
+
+                        <!-- キャラクター設定 -->
+                        <div class="info-section">
+                            <h3 class="section-title">キャラクター設定</h3>
+                            <div class="section-content">
+                                <p><strong>双子幽霊:</strong> 正反対の性格が交互に現れる</p>
+                                <p><strong>中盤の山場:</strong> 戦略の切り替えが必要</p>
+                                <p><strong>連携攻撃:</strong> たまに二人同時に出現</p>
+                                <p><strong>難易度:</strong> ★★★★☆</p>
+                            </div>
+                        </div>
+
+                        <!-- 戦闘の特徴 -->
+                        <div class="info-section">
+                            <h3 class="section-title">戦闘の特徴</h3>
+                            <div class="section-content">
+                                <p><strong>人格交代:</strong> 負けると人格チェンジ（戦略が真逆に）</p>
+                                <p><strong>ツインアタック:</strong> 5ターンごとに2回連続で手を出す</p>
+                                <p><strong>仕草混乱:</strong> 両方の人格が違うヒントを出す（50%）</p>
+                                <p><strong>フェイク:</strong> 陽真15%、陰真25%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右側：双子画像 -->
+                <div class="ayato-info-right">
+                    <div class="ayato-portrait">
+                        <div class="ayato-image">👯</div>
+                        <div class="ayato-name-display">陽真・陰真</div>
+                        <div class="ayato-subtitle">元アパレル店員淫霊</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 操作説明 -->
+            <div class="ayato-info-controls">
+                <button class="ayato-battle-btn" id="twins-battle-btn">
+                    <span class="btn-text">解体ショー開始</span>
+                    <span class="btn-key">SPACE</span>
+                </button>
+                <p class="ayato-info-note">戦略の切り替えが鍵</p>
+            </div>
+        `;
+        
+        // 既存の画面を非表示にして、新しい画面を追加
+        document.body.appendChild(infoContainer);
+        
+        // イベントリスナーを追加
+        const battleBtn = document.getElementById('twins-battle-btn');
+        if (battleBtn) {
+            battleBtn.addEventListener('click', () => {
+                this.startTwinsBattle();
+            });
+        }
+        
+        // SPACEキーでも開始できるように
+        const spaceHandler = (e) => {
+            if (e.key === ' ' && this.isTwinsInfoScreen) {
+                e.preventDefault();
+                this.startTwinsBattle();
+                document.removeEventListener('keydown', spaceHandler);
+            }
+        };
+        document.addEventListener('keydown', spaceHandler);
+        
+        console.log('双子特徴説明画面表示完了');
+    }
+    
+    // 双子特徴説明画面用のスタイル追加
+    addTwinsInfoStyles() {
+        const style = document.createElement('style');
+        style.textContent = `
+            .twins-info-screen {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 1000;
+            }
+            
+            .twins-info-background {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                opacity: 0.9;
+            }
+            
+            .twins-info-content {
+                position: relative;
+                background: rgba(255, 255, 255, 0.95);
+                border-radius: 20px;
+                padding: 40px;
+                max-width: 800px;
+                box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            }
+            
+            .twins-title {
+                color: #764ba2;
+                font-size: 28px;
+                margin-bottom: 10px;
+            }
+            
+            .twins-subtitle {
+                color: #666;
+                font-size: 18px;
+                margin-bottom: 30px;
+            }
+            
+            .twins-characteristics {
+                display: flex;
+                gap: 30px;
+                margin-bottom: 30px;
+            }
+            
+            .twin-card {
+                flex: 1;
+                padding: 20px;
+                border-radius: 10px;
+                box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            }
+            
+            .yoma-card {
+                background: linear-gradient(135deg, #ff6b6b, #ffd93d);
+                color: white;
+            }
+            
+            .inma-card {
+                background: linear-gradient(135deg, #4e54c8, #8f94fb);
+                color: white;
+            }
+            
+            .twin-stats p {
+                margin: 5px 0;
+                font-size: 16px;
+            }
+            
+            .twin-type {
+                margin-top: 10px;
+                font-weight: bold;
+                font-size: 18px;
+            }
+            
+            .twins-features {
+                background: rgba(118, 75, 162, 0.1);
+                padding: 20px;
+                border-radius: 10px;
+                margin-bottom: 30px;
+            }
+            
+            .twins-features h3 {
+                color: #764ba2;
+                margin-bottom: 15px;
+            }
+            
+            .twins-features ul {
+                list-style: none;
+                padding: 0;
+            }
+            
+            .twins-features li {
+                margin: 10px 0;
+                font-size: 16px;
+            }
+            
+            .twins-battle-btn {
+                background: linear-gradient(135deg, #667eea, #764ba2);
+                color: white;
+                border: none;
+                padding: 15px 40px;
+                border-radius: 30px;
+                font-size: 18px;
+                cursor: pointer;
+                transition: transform 0.3s;
+            }
+            
+            .twins-battle-btn:hover {
+                transform: scale(1.05);
+            }
+            
+            .twins-info-note {
+                margin-top: 15px;
+                color: #666;
+                font-size: 14px;
+            }
+        `;
+        document.head.appendChild(style);
+    }
+    
+    // 双子戦開始
+    startTwinsBattle() {
+        console.log('双子戦開始処理');
+        
+        // フラグ更新
+        this.isTwinsInfoScreen = false;
+        
+        // 双子特徴説明画面を削除
+        const infoScreen = document.getElementById('twins-info-screen');
+        if (infoScreen) {
+            infoScreen.remove();
+        }
+        
+        // バトル画面を表示
+        if (this.elements.battleScreen) {
+            this.elements.battleScreen.style.display = 'block';
+        }
+        
+        // ゲーム状態をリセット
+        if (window.battleSystem) {
+            window.battleSystem.resetGame();
+            window.battleSystem.switchGhost('twins');
+        }
+        
+        // 敵名表示を更新
+        const enemyNameElements = document.querySelectorAll('.enemy-wins');
+        enemyNameElements.forEach(elem => {
+            elem.innerHTML = '陽真: <span id="enemy-wins">0</span>勝';
+        });
+        
+        // HPラベルも更新
+        const enemyHpLabel = document.querySelector('.enemy-hp .hp-label');
+        if (enemyHpLabel) {
+            enemyHpLabel.textContent = '陽真（淫霊）';
+        }
+        
+        // 露出度ダイアログフラグもリセット
+        this.exposureDialogueShown = {};
+        
+        // 双子戦用のログ表示
+        this.elements.logContent.innerHTML = '<p class="log-entry system">双子の淫霊との心理戦開始...</p>';
+        
+        // UI更新とラウンド開始
+        this.updateUI();
+        this.startNewRound();
+        
+        console.log('双子戦開始完了');
+    }
+    
     // ストーリーシーン表示
     displayStoryScene() {
         const scene = this.storyScenes[this.currentStoryScene];
@@ -1321,8 +2182,11 @@ class GameController {
         textElement.innerHTML = '';
         textElement.classList.add('typing');
         
+        // 配列の場合は文字列に変換
+        const textString = Array.isArray(text) ? text.join('\n') : text;
+        
         // テキストを解析して話者と台詞に分ける
-        const dialogues = this.parseDialogues(text);
+        const dialogues = this.parseDialogues(textString);
         let currentDialogueIndex = 0;
         
         const showNextDialogue = () => {
@@ -1425,18 +2289,56 @@ class GameController {
                         if (cleanText.trim()) {
                             // 先頭の丸や余分な記号を削除（より広範囲に対応）
                             cleanText = cleanText.replace(/^[•・○◦●◯]\s*/, '').trim();
-                            // 特定の文字列の先頭記号も削除
-                            cleanText = cleanText.replace(/^。\s*/, '').trim();
-                            // 「」記号を削除
-                            cleanText = cleanText.replace(/「|」/g, '').trim();
-                            
                             // 話者判定 - デフォルトはナレーション
                             let speaker = 'ナレーション';
                             
                             console.log('話者判定中 - テキスト:', cleanText);
                             
-                            // 栗之助の台詞判定を最優先に
-                            if (cleanText.includes('定刻通りですね') ||
+                            // 直接的な話者表記をチェック（最優先）
+                            if (cleanText.startsWith('鈴音「') || cleanText.includes('鈴音「')) {
+                                speaker = '鈴音';
+                                console.log('→ 鈴音として判定（直接表記）');
+                            } else if (cleanText.includes('太郎「')) {
+                                speaker = '太郎';
+                                console.log('→ 太郎として判定（直接表記）');
+                            } else if (cleanText.startsWith('陽真「') || cleanText.includes('陽真「')) {
+                                speaker = '陽真';
+                                console.log('→ 陽真として判定（直接表記）');
+                            } else if (cleanText.startsWith('陰真「') || cleanText.includes('陰真「')) {
+                                speaker = '陰真';
+                                console.log('→ 陰真として判定（直接表記）');
+                            } else if (cleanText.startsWith('栗之助「') || cleanText.includes('栗之助「')) {
+                                speaker = '栗之助';
+                                console.log('→ 栗之助として判定（直接表記）');
+                            } else if (cleanText.startsWith('彩人「') || cleanText.includes('彩人「')) {
+                                speaker = '彩人';
+                                console.log('→ 彩人として判定（直接表記）');
+                            } else if (cleanText.startsWith('朔夜「') || cleanText.includes('朔夜「')) {
+                                speaker = '朔夜';
+                                console.log('→ 朔夜として判定（直接表記）');
+                            }
+                            
+                            // 朔夜の台詞判定を最優先に（話者名削除前）
+                            if (cleanText.includes('新しい患者さんですね') ||
+                                cleanText.includes('私は朔夜、元産婦人科医です') ||
+                                cleanText.includes('診断') ||
+                                cleanText.includes('患者') ||
+                                cleanText.includes('手術') ||
+                                cleanText.includes('医師') ||
+                                cleanText.includes('病院') ||
+                                cleanText.includes('治療') ||
+                                cleanText.includes('診察') ||
+                                cleanText.includes('医療') ||
+                                cleanText.includes('産婦人科') ||
+                                cleanText.includes('カルテ') ||
+                                cleanText.includes('症状') ||
+                                cleanText.includes('お疲れさまです') ||
+                                cleanText.includes('深夜の手術')) {
+                                speaker = '朔夜';
+                                console.log('→ 朔夜として判定（医療用語）');
+                            }
+                            // 栗之助の台詞判定を最優先に（話者名削除前）
+                            else if (cleanText.includes('定刻通りですね') ||
                                 cleanText.includes('私は栗之助') ||
                                 cleanText.includes('元大企業の営業部長です') ||
                                 cleanText.includes('その前に、私の話を聞いてください') ||
@@ -1448,7 +2350,7 @@ class GameController {
                                 cleanText.includes('会社は倒産') ||
                                 cleanText.includes('過労死しました') ||
                                 cleanText.includes('データを開示します') ||
-                                cleanText.includes('石拳を80%の確率で') ||
+                                cleanText.includes('石拳は80%の確率で') ||
                                 cleanText.includes('これは私のトラウマ') ||
                                 cleanText.includes('同じ手を出し続ける癖です') ||
                                 cleanText.includes('ビジネスは透明性が大切です') ||
@@ -1475,7 +2377,12 @@ class GameController {
                                       cleanText.includes('あなたも淫霊ね') ||
                                       cleanText.includes('自分の手の内を明かすの') ||
                                       cleanText.includes('望むところよ') ||
-                                      cleanText.includes('あなたのトラウマも浄化してあげる')) {
+                                      cleanText.includes('あなたのトラウマも浄化してあげる') ||
+                                      cleanText.includes('地下3階...香水の匂いが強い') ||
+                                      cleanText.includes('ここは...洋服屋さんみたいね...') ||
+                                      cleanText.includes('それで淫霊に...') ||
+                                      cleanText.includes('淫霊からの贈り物...？') ||
+                                      cleanText.includes('二人同時なんて...でも負けない！')) {
                                 speaker = '鈴音';
                                 console.log('→ 鈴音として判定');
                             } 
@@ -1489,12 +2396,55 @@ class GameController {
                                       cleanText.includes('友情なんて嘘だった') ||
                                       cleanText.includes('俺は相手の逆を突く') ||
                                       cleanText.includes('さあ始めようか') ||
-                                      cleanText.includes('お前の考えなんて全部お見通しだ')) &&
+                                      cleanText.includes('お前の考えなんて全部お見通しだ') ||
+                                      cleanText.includes('本当の勝負ができて...嬉しかった') ||
+                                      cleanText.includes('次は地下3階...双子の陽真と陰真だ') ||
+                                      cleanText.includes('元アパレル店員で...二人同時に相手することになる') ||
+                                      cleanText.includes('気をつけて...ありがとう、鈴音さん')) &&
                                       !cleanText.includes('太郎、ごめん') &&
                                       !cleanText.includes('テーブルの上にあるノート') &&
-                                      !cleanText.includes('最後のページに')) {
+                                      !cleanText.includes('最後のページに') &&
+                                      !cleanText.includes('太郎の姿が') &&
+                                      !cleanText.includes('太郎の表情が')) {
                                 speaker = '太郎';
                                 console.log('→ 太郎として判定');
+                            }
+                            // 双子の台詞判定
+                            else if (cleanText.includes('いらっしゃいませー！') ||
+                                    cleanText.includes('...その服、ひどい状態ね') ||
+                                    cleanText.includes('俺は陽真、こっちは双子の弟・陰真') ||
+                                    cleanText.includes('生前はセレクトショップの店員だった') ||
+                                    cleanText.includes('ある日、VIP客と服の趣味で対立して') ||
+                                    cleanText.includes('三手で決めましょうと言われた') ||
+                                    cleanText.includes('二人で交代しながら戦ったけど...') ||
+                                    cleanText.includes('息が合わなくて負けた') ||
+                                    cleanText.includes('店は潰れ、俺たちは心労で...') ||
+                                    cleanText.includes('その前に、その服どうにかしましょう') ||
+                                    cleanText.includes('プロとして見過ごせない') ||
+                                    cleanText.includes('そうだ！新しい服プレゼントする！') ||
+                                    cleanText.includes('好きなの選んで！') ||
+                                    cleanText.includes('安心して！ただの服だよ') ||
+                                    cleanText.includes('でも三手で負けたら...') ||
+                                    cleanText.includes('一枚ずつ、丁寧に脱がせてあげる') ||
+                                    cleanText.includes('さあ、ファッションショーの始まりだ！') ||
+                                    cleanText.includes('あなたのコーディネート、解体させてもらうわ')) {
+                                // 陽真・陰真の判定
+                                if (cleanText.includes('俺は陽真') || 
+                                    cleanText.includes('いらっしゃいませー') ||
+                                    cleanText.includes('そうだ！新しい服') ||
+                                    cleanText.includes('生前はセレクトショップ') ||
+                                    cleanText.includes('二人で交代しながら') ||
+                                    cleanText.includes('息が合わなくて') ||
+                                    cleanText.includes('店は潰れ、俺たちは') ||
+                                    cleanText.includes('好きなの選んで') ||
+                                    cleanText.includes('安心して！ただの服') ||
+                                    cleanText.includes('でも三手で負けたら') ||
+                                    cleanText.includes('さあ、ファッションショー')) {
+                                    speaker = '陽真';
+                                } else {
+                                    speaker = '陰真';
+                                }
+                                console.log('→ 双子として判定:', speaker);
                             }
                             // 彩人の台詞判定
                             else if (cleanText.includes('美しい') ||
@@ -1517,12 +2467,34 @@ class GameController {
                                 cleanText.includes('うっ...淫気が一気に') ||
                                 cleanText.includes('ここが地下1階') ||
                                 cleanText.includes('書類を持った男性が現れる') ||
-                                cleanText.includes('オフィスのようだ')) {
+                                cleanText.includes('オフィスのようだ') ||
+                                cleanText.includes('太郎の姿が薄れていく') ||
+                                cleanText.includes('太郎の表情が穏やかになった') ||
+                                cleanText.includes('太郎の姿が完全に消えた') ||
+                                cleanText.includes('地下3階への階段を降りる') ||
+                                cleanText.includes('階段を降りるにつれて、様々な香りが混じり合う') ||
+                                cleanText.includes('扉を開けると、そこは確かに服屋のフロアだった') ||
+                                cleanText.includes('マネキンが立ち並び、色とりどりの服が整然と並んでいる') ||
+                                cleanText.includes('明るい声が響く') ||
+                                cleanText.includes('対照的な、冷たい声') ||
+                                cleanText.includes('二人の淫霊が現れた') ||
+                                cleanText.includes('陰真が鈴音の服装を見て眉をひそめる') ||
+                                cleanText.includes('様々な服が宙に浮かび、鈴音の前に現れた') ||
+                                cleanText.includes('鈴音はカジュアルセットを選んだ') ||
+                                cleanText.includes('鈴音の服装が一瞬で新しいカジュアルセットに変わった') ||
+                                cleanText.includes('鈴音はカジュアルセットを選んだようだ') ||
+                                cleanText.includes('太郎の姿が完全に消えた。心安らかに成仏したようだ') ||
+                                cleanText.includes('扉を開けると、そこは確かに服屋のフロアだった')) {
                                 speaker = 'ナレーション';
                                 console.log('→ ナレーションとして判定（特定フレーズ）');
                             } else {
                                 console.log('→ デフォルト（ナレーション）:', speaker);
                             }
+                            
+                            // 全ての判定が終わったら話者名と記号を削除
+                            cleanText = cleanText.replace(/^。\s*/, '').trim();
+                            cleanText = cleanText.replace(/^(鈴音|太郎|陽真|陰真|栗之助|彩人|朔夜)/, '').trim();
+                            cleanText = cleanText.replace(/「|」/g, '').trim();
                             
                             if (cleanText) {
                                 dialogues.push({ speaker: speaker, text: cleanText });
@@ -1560,47 +2532,50 @@ class GameController {
                             // 話者判定
                             let speaker = 'ナレーション';
                             
+                            // 話者名を直接含むかチェック
+                            if (trimmed.includes('鈴音「')) {
+                                speaker = '鈴音';
+                            } else if (trimmed.includes('太郎「')) {
+                                speaker = '太郎';
+                            } else if (trimmed.includes('陽真「')) {
+                                speaker = '陽真';
+                            } else if (trimmed.includes('陰真「')) {
+                                speaker = '陰真';
+                            } else if (trimmed.includes('栗之助「')) {
+                                speaker = '栗之助';
+                            } else if (trimmed.includes('彩人「')) {
+                                speaker = '彩人';
+                            } else if (trimmed.includes('朔夜「')) {
+                                speaker = '朔夜';
+                            }
                             // 台詞内容で判定
-                            if (cleanQuote.includes('分かりました') || 
+                            else if (cleanQuote.includes('分かりました') || 
                                 cleanQuote.includes('必ずや') || 
                                 cleanQuote.includes('成仏させて') ||
-                                cleanQuote.includes('ここが...噂の屋敷') ||
+                                cleanQuote.includes('ここが...嘘の屋敷') ||
                                 cleanQuote.includes('望むところです')) {
                                 speaker = '鈴音';
                             } else if (cleanQuote.includes('街外れの屋敷') || 
                                       cleanQuote.includes('あの屋敷に入った者') ||
                                       cleanQuote.includes('魂を奪われて')) {
                                 speaker = '老人';
-                            } else if (trimmed.includes('鈴音')) {
-                                speaker = '鈴音';
                             } else {
                                 // デフォルトは前の話者を継続
                                 speaker = dialogues.length > 0 && dialogues[dialogues.length - 1].speaker !== 'ナレーション' 
                                         ? dialogues[dialogues.length - 1].speaker : 'ナレーション';
                             }
                             
-                            dialogues.push({ speaker: speaker, text: cleanQuote });
+                            // 話者がナレーションの場合は追加しない
+                            if (speaker !== 'ナレーション') {
+                                dialogues.push({ speaker: speaker, text: cleanQuote });
+                            }
                         }
                     });
                 }
                 
-                // 括弧以外の地の文
-                let withoutQuotes = trimmed.replace(/「.*?」/g, '').trim();
-                // 先頭の丸や余分な記号を削除（より広範囲に対応）
-                withoutQuotes = withoutQuotes.replace(/^[•・○◦●◯]\s*/, '').trim();
-                withoutQuotes = withoutQuotes.replace(/^。\s*/, '').trim();
-                if (withoutQuotes) {
-                    dialogues.push({ speaker: 'ナレーション', text: withoutQuotes });
-                }
+                // 括弧以外の地の文は追加しない
             } 
-            // 地の文のみ
-            else {
-                let narrativeOnly = trimmed.replace(/^[•・○◦●◯]\s*/, '').trim();
-                narrativeOnly = narrativeOnly.replace(/^。\s*/, '').trim();
-                if (narrativeOnly) {
-                    dialogues.push({ speaker: 'ナレーション', text: narrativeOnly });
-                }
-            }
+            // 地の文のみも追加しない
         }
         
         return dialogues;
@@ -1657,6 +2632,9 @@ class GameController {
             '彩人': '彩人',
             '太郎': '太郎',
             '栗之助': '栗之助',
+            '陽真': '陽真',
+            '陰真': '陰真',
+            '朔夜': '朔夜',
             '老人': '老人',
             'ナレーション': 'ナレーション'
         };
@@ -1704,7 +2682,25 @@ class GameController {
         
         this.currentStoryScene++;
         
-        if (this.isTaroStory) {
+        if (this.isSakuyaStory) {
+            // 朔夜戦ストーリーの場合
+            if (this.currentStoryScene >= this.sakuyaStoryScenes.length) {
+                // 朔夜戦ストーリー終了、朔夜特徴説明画面へ
+                this.showSakuyaInfo();
+            } else {
+                // 次のシーン表示
+                this.displaySakuyaStoryScene();
+            }
+        } else if (this.isTwinsStory) {
+            // 双子戦ストーリーの場合
+            if (this.currentStoryScene >= this.twinsStoryScenes.length) {
+                // 双子戦ストーリー終了、双子特徴説明画面へ
+                this.showTwinsInfo();
+            } else {
+                // 次のシーン表示
+                this.displayTwinsStoryScene();
+            }
+        } else if (this.isTaroStory) {
             // 太郎戦ストーリーの場合
             if (this.currentStoryScene >= this.taroStoryScenes.length) {
                 // 太郎戦ストーリー終了、太郎特徴説明画面へ
@@ -1991,33 +2987,12 @@ class GameController {
             this.showTaroStory();
             return;
         } else if (this.currentGhost === 'taro') {
-            console.log('>>> 太郎戦判定: TRUE - 現在は彩人戦に戻る（将来的には次の淫霊へ）');
-            // 太郎戦後は彩人戦に戻る（将来的には次の淫霊戦へ）
-            this.currentGhost = 'ayato';
-            window.battleSystem.switchGhost('ayato');
-            this.updateGhostUI();
+            console.log('>>> 太郎戦判定: TRUE - 第四淫霊（双子）戦へ移行');
+            // 太郎戦後は第四淫霊（双子）戦へ
+            this.currentGhost = 'twins';
             
-            // ログをクリア
-            this.elements.logContent.innerHTML = '<p class="log-entry system">彩人との心理戦開始...</p>';
-            
-            // HPのみリセット、ラウンドカウントは継続
-            window.battleSystem.gameState.enemyHP = 100;
-            
-            // 戦闘状態のみリセット（ラウンドは継続）
-            this.isRevealPhase = false;
-            this.currentEnemyHand = null;
-            
-            // UI初期化
-            this.elements.handButtons.forEach(btn => {
-                btn.classList.remove('selected');
-            });
-            this.elements.selectedHandDisplay.textContent = '選択: なし';
-            this.elements.provokeEffect.classList.remove('active');
-            this.elements.rewindBtn.style.display = 'none';
-            this.elements.revealBtn.disabled = false;
-            
-            this.updateUI();
-            this.startNewRound();
+            // 第四淫霊戦ストーリー表示
+            this.showTwinsStory();
             return;
         } else {
             console.log('>>> 彩人戦判定 - 栗之助戦イベントに遷移');
@@ -2060,25 +3035,35 @@ class GameController {
     // 淫霊UIを更新
     updateGhostUI() {
         let ghostData = null;
+        let displayName = null;
+        
         if (this.currentGhost === 'kurinosuke') {
             ghostData = window.csvLoader.getKurinosukeData();
         } else if (this.currentGhost === 'ayato') {
             ghostData = window.csvLoader.getAyatoData();
         } else if (this.currentGhost === 'taro') {
             ghostData = window.csvLoader.getTaroData();
+        } else if (this.currentGhost === 'twins') {
+            ghostData = window.csvLoader.getTwinsData();
+            // 双子戦では現在のモードに応じて表示名を変更
+            const currentMode = window.battleSystem && window.battleSystem.currentTwin ? 
+                window.battleSystem.currentTwin : 'yoma';
+            displayName = currentMode === 'yoma' ? '陽真' : '陰真';
         }
         
         if (ghostData) {
+            const nameToDisplay = displayName || ghostData.name;
+            
             // 敵の名前を更新（右側の淫霊の名前のみ）
             const enemyNameElements = document.querySelectorAll('.enemy-section .character-name');
             enemyNameElements.forEach(elem => {
-                elem.textContent = ghostData.name;
+                elem.textContent = nameToDisplay;
             });
             
             // HP表示の名前を更新
             const hpLabel = document.querySelector('.enemy-hp .hp-label');
             if (hpLabel) {
-                hpLabel.textContent = `${ghostData.name}（淫霊）`;
+                hpLabel.textContent = `${nameToDisplay}（淫霊）`;
             }
             
             // 勝利カウントの名前を更新（カウント値は保持）
@@ -2086,7 +3071,7 @@ class GameController {
             const enemyWinsSpan = document.getElementById('enemy-wins');
             if (enemyWinsLabel && enemyWinsSpan) {
                 const currentWins = enemyWinsSpan.textContent;
-                enemyWinsLabel.innerHTML = `${ghostData.name}: <span id="enemy-wins">${currentWins}</span>勝`;
+                enemyWinsLabel.innerHTML = `${nameToDisplay}: <span id="enemy-wins">${currentWins}</span>勝`;
                 // 新しい要素の参照を更新
                 this.elements.enemyWins = document.getElementById('enemy-wins');
             }
@@ -2112,7 +3097,7 @@ class GameController {
         
         // 開発者用URLパラメータチェック
         const urlParams = new URLSearchParams(window.location.search);
-        const directStart = urlParams.get('battle');
+        const directStart = urlParams.get('ghost') || urlParams.get('battle');
         
         if (directStart) {
             console.log('開発者用直接スタート:', directStart);
@@ -2150,7 +3135,7 @@ class GameController {
         this.isAyatoInfoScreen = false;
         
         // 指定された敵に切り替え
-        if (ghostId === 'taro' || ghostId === 'kurinosuke' || ghostId === 'ayato') {
+        if (ghostId === 'taro' || ghostId === 'kurinosuke' || ghostId === 'ayato' || ghostId === 'twins') {
             this.currentGhost = ghostId;
             
             // 開発用：初期化してからスタート
@@ -2160,7 +3145,8 @@ class GameController {
             
             // ログをクリア
             const enemyName = ghostId === 'kurinosuke' ? '栗之助' : 
-                             ghostId === 'taro' ? '太郎' : '彩人';
+                             ghostId === 'taro' ? '太郎' : 
+                             ghostId === 'twins' ? '陽真' : '彩人';
             this.elements.logContent.innerHTML = `<p class="log-entry system">${enemyName}との心理戦開始...</p>`;
             
             console.log(`直接${enemyName}戦を開始`);
@@ -2192,6 +3178,45 @@ class GameController {
             this.showKurinosukeStory();
             console.log('直接栗之助戦ストーリーを開始');
             return; // ここでreturnしてstartNewRoundを呼ばない
+        } else if (ghostId === 'twins-story') {
+            // 双子戦ストーリーから開始
+            this.currentGhost = 'twins';
+            window.battleSystem.resetGame();
+            window.battleSystem.switchGhost('twins');
+            this.updateGhostUI();
+            
+            // HPのみリセット
+            window.battleSystem.gameState.enemyHP = 100;
+            
+            // 双子戦ストーリー表示
+            this.showTwinsStory();
+            console.log('直接双子戦ストーリーを開始');
+            return; // ここでreturnしてstartNewRoundを呼ばない
+        } else if (ghostId === 'twins-info') {
+            // 双子の特徴説明画面に直接アクセス
+            this.currentGhost = 'twins';
+            window.battleSystem.resetGame();
+            window.battleSystem.switchGhost('twins');
+            this.updateGhostUI();
+            
+            // 双子特徴説明画面を表示
+            this.showTwinsInfo();
+            console.log('直接双子特徴説明画面を表示');
+            return;
+        } else if (ghostId === 'sakuya-story') {
+            // 朔夜戦ストーリーから開始
+            this.currentGhost = 'sakuya';
+            window.battleSystem.resetGame();
+            window.battleSystem.switchGhost('sakuya');
+            this.updateGhostUI();
+            
+            // HPのみリセット
+            window.battleSystem.gameState.enemyHP = 100;
+            
+            // 朔夜戦ストーリー表示
+            this.showSakuyaStory();
+            console.log('直接朔夜戦ストーリーを開始');
+            return;
         }
         
         // ゲーム開始
