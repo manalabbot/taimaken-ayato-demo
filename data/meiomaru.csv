@@ -1,0 +1,2 @@
+﻿name,id,tellRate,fakeRate,provokeResponse,stone,scissors,paper,specialPattern
+冥王丸,meiomaru,0.30,0.50,0.80,0.33,0.33,0.34,boss-fusion

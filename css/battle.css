@@ -1928,8 +1928,9 @@ body {
 /* コントロール部分 */
 .story-controls {
     display: flex;
-    justify-content: space-between;
+    justify-content: center;
     align-items: center;
+    margin: 20px 0;
     animation: fadeInUp 0.8s ease-out 0.5s both;
 }
 

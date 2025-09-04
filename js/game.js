@@ -489,7 +489,25 @@ class GameController {
         let enemyDialogues = {};
         let enemyName = '';
         
-        if (this.currentGhost === 'taro') {
+        if (this.currentGhost === 'sakuya') {
+            // 朔夜戦の鈴音のセリフ
+            suzuneDialogues = {
+                '1-2': '「先生なのに...こんなことするの？」',
+                '2-3': '「診察じゃない...これは...！」',
+                '3-4': '「もう...診てもらいたくない...」',
+                '4-5': '「完全に...診られちゃう...」',
+                '5-defeat': '「全部...カルテに記録された...」'
+            };
+            // 朔夜のセリフ
+            enemyName = '朔夜';
+            enemyDialogues = {
+                '1-2': '「診察を始めます...服を脱いでください」',
+                '2-3': '「下半身の検査も必要ですね」',
+                '3-4': '「体温が上昇...もっと詳しく診ないと」',
+                '4-5': '「最後の診察...全身を確認します」',
+                '5-defeat': '「完璧な症例...永久保存決定です」'
+            };
+        } else if (this.currentGhost === 'taro') {
             // 太郎戦の鈴音のセリフ
             suzuneDialogues = {
                 '1-2': '「あっ...上着取られちゃった...」',
@@ -622,7 +640,7 @@ class GameController {
         
         if (this.isRevealPhase) return;
         
-        // 彩人の手を決定
+        // 敵の手を決定
         this.currentEnemyHand = window.battleSystem.decideEnemyHand();
         
         // 一旦結果を表示
@@ -632,11 +650,29 @@ class GameController {
             paper: '布掌'
         };
         
-        // 敌の名前を動的に取得
+        // 敵の名前を動的に取得（朔夜・冥王丸追加）
         const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : 
                          this.currentGhost === 'taro' ? '太郎' : 
+                         this.currentGhost === 'sakuya' ? '朔夜' :
+                         this.currentGhost === 'meiomaru' ? '冥王丸' :
                          this.currentGhost === 'twins' ? (window.battleSystem.currentTwin === 'yoma' ? '陽真' : '陰真') : '彩人';
-        this.addLog(`鈴音: ${handNames[state.selectedPlayerHand]} vs ${enemyName}: ${handNames[this.currentEnemyHand]}`, 'system');
+        
+        // 冥王丸戦の場合は融合モード情報も表示
+        let fusionInfo = '';
+        if (this.currentGhost === 'meiomaru' && window.battleSystem.meioumaruFusionMode) {
+            const modeNames = {
+                'ayato': '彩人の力',
+                'kurinosuke': '栗之助の力', 
+                'taro': '太郎の力',
+                'twins': '双子の力',
+                'sakuya': '朔夜の力',
+                'base': '冥王丸本来の力',
+                'chaos': '混沌の力'
+            };
+            fusionInfo = ` (${modeNames[window.battleSystem.meioumaruFusionMode] || window.battleSystem.meioumaruFusionMode})`;
+        }
+        
+        this.addLog(`鈴音: ${handNames[state.selectedPlayerHand]} vs ${enemyName}${fusionInfo}: ${handNames[this.currentEnemyHand]}`, 'system');
         
         // 読み直しフェーズへ
         this.isRevealPhase = true;
@@ -979,6 +1015,33 @@ class GameController {
                 this.elements.currentTell.textContent = '仕草なし（完全ランダム）';
                 this.addLog('双子は仕草を見せない...完全ランダム', 'system');
             }
+        } else if (this.currentGhost === 'sakuya') {
+            // 朔夜の場合は医療診断メッセージ
+            if (tell) {
+                const handNames = {
+                    stone: '石拳',
+                    scissors: '剪刀',
+                    paper: '布掌'
+                };
+                
+                // 朔夜専用の医療診断メッセージ
+                const diagnosticMessages = [
+                    '淫乱指数計測中',
+                    'えちえち度を診断中',
+                    '各淫霊戦のカルテを参照',
+                    '淫部の症状を確認中',
+                    '女体データを解析中',
+                    'ムラムラ度を測定中'
+                ];
+                const randomDiagnostic = diagnosticMessages[Math.floor(Math.random() * diagnosticMessages.length)];
+                
+                this.elements.currentTell.innerHTML = 
+                    `<div style="line-height: 1.2;">${randomDiagnostic}<br>→ ${handNames[tell.target]} 診断 (誤診率25%)</div>`;
+                this.addLog(`朔夜の診断: ${randomDiagnostic} - ${tell.desc}`, 'system');
+            } else {
+                this.elements.currentTell.textContent = '仕草なし（完全ランダム）';
+                this.addLog('朔夜は診断を行わない...完全ランダム', 'system');
+            }
         } else {
             // 彩人の場合は通常の仕草表示
             if (tell) {
@@ -1103,6 +1166,14 @@ class GameController {
         
         if (result.winner === 'player') {
             console.log('プレイヤー勝利処理');
+            
+            // 朔夜戦勝利の場合は特別ストーリー開始
+            if (this.currentGhost === 'sakuya') {
+                console.log('朔夜戦勝利 - ボス戦ストーリー開始');
+                this.startMeioumaruStory();
+                return;
+            }
+            
             // 勝利の種類を判定
             const victoryType = this.determineVictoryType(state);
             this.handlePlayerVictory(victoryType, state, result.reason);
@@ -1111,7 +1182,8 @@ class GameController {
             this.elements.resultTitle.textContent = '奇跡の勝利！';
             const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : 
                              this.currentGhost === 'taro' ? '太郎' :
-                             this.currentGhost === 'twins' ? '双子' : '彩人';
+                             this.currentGhost === 'twins' ? '双子' :
+                             this.currentGhost === 'sakuya' ? '朔夜' : '彩人';
             this.elements.resultText.textContent = `限界状態から逆転勝利！鈴音の気迫が${enemyName}を圧倒した！`;
             this.addVictoryBonus('comeback_victory');
         } else if (result.winner === 'enemy') {
@@ -1134,7 +1206,8 @@ class GameController {
                 this.elements.resultTitle.textContent = '敗北...';
                 const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : 
                              this.currentGhost === 'taro' ? '太郎' :
-                             this.currentGhost === 'twins' ? '双子' : '彩人';
+                             this.currentGhost === 'twins' ? '双子' :
+                             this.currentGhost === 'sakuya' ? '朔夜' : '彩人';
                 this.elements.resultText.textContent = `${enemyName}に敗れた...（${result.reason}）`;
             }, 100);
         } else if (result.winner === 'enemy_special') {
@@ -1146,8 +1219,9 @@ class GameController {
             this.elements.resultTitle.textContent = '屈辱的敗北...';
             const enemyName = this.currentGhost === 'kurinosuke' ? '栗之助' : 
                              this.currentGhost === 'taro' ? '太郎' :
-                             this.currentGhost === 'twins' ? '双子' : '彩人';
-            this.elements.resultText.textContent = `限界露出で敗北...鈴音は恥ずかしい格奿のまま${enemyName}に屈服した...`;
+                             this.currentGhost === 'twins' ? '双子' :
+                             this.currentGhost === 'sakuya' ? '朔夜' : '彩人';
+            this.elements.resultText.textContent = `限界露出で敗北...鈴音は恥ずかしい格好のまま${enemyName}に屈服した...`;
             
             // 屈辱的敗北の場合、特殊処理フラグを設定
             this.handleSpecialDefeat(state);
@@ -1169,6 +1243,236 @@ class GameController {
             // POVモードが終了したらモーダルを表示するためのフラグをセット
             this.pendingModal = true;
         }
+    }
+
+    // 朔夜戦勝利後～冥王丸戦ストーリー開始
+    startMeioumaruStory() {
+        console.log('=== 朔夜戦後～冥王丸戦ストーリー開始 ===');
+        
+        // バトル画面を隠す
+        this.elements.battleScreen.style.display = 'none';
+        
+        // ストーリー画面を作成・表示
+        this.showMeioumaruStoryScreen();
+        
+        // ストーリーシーンデータを定義
+        this.meioumaruStoryScenes = [
+            // シーン1: 朔夜戦後
+            {
+                title: "朔夜戦終了後",
+                texts: [
+                    "朔夜「見事な症例でした...」",
+                    "朔夜「ただ、その薬品臭い服装では失礼でしょう」",
+                    "朔夜「私の最後の処方です」",
+                    "鈴音「これは...ナース服？でもえちえちじゃない..？」",
+                    "朔夜「特別仕様です...動きやすさを追求した結果です」",
+                    "朔夜「医学的に最適化されています...多分」",
+                    "朔夜「これで5体全員、成仏できます...ね...？」",
+                    "朔夜「待って...何か違う...私たち本当に成仏でき...」",
+                    "ナレーション「朔夜消滅・言葉が途切れる」",
+                    "ナレーション「鈴音の服装がえちえちナース服に着替えた」"
+                ]
+            },
+            // シーン2: 偽りの脱出
+            {
+                title: "偽りの脱出",
+                texts: [
+                    "鈴音「朔夜さんの最後の言葉...気になる」",
+                    "鈴音「でも、とにかく屋敷から出よう」",
+                    "ナレーション「玄関に到着、扉に手をかけるが開かない」",
+                    "鈴音「開かない...？なぜ？」",
+                    "ナレーション「屋敷全体が突然暗転し、不気味な笑い声が響く」",
+                    "謎の声「ククククク...」",
+                    "謎の声「帰る？どこへ？」",
+                    "謎の声「ここは我が領域...出口など最初から存在せぬ」"
+                ]
+            },
+            // シーン3: 真実の暴露
+            {
+                title: "真実の暴露",
+                texts: [
+                    "ナレーション「床に魔法陣が浮かび上がり、その中心から人物が立ち上る」",
+                    "冥王丸「初めまして、淫術師・鈴音」",
+                    "冥王丸「我は冥王丸...この屋敷の創造主にして支配者」",
+                    "鈴音「創造主...？5体の淫霊たちは？」",
+                    "冥王丸「ククク...真実を教えてやろう」",
+                    "ナレーション「幻影で5体の淫霊が再び現れる」",
+                    "彩人の幻影「僕たちは...成仏なんてしていない...」",
+                    "栗之助の幻影「契約は...まだ終わっていない...」",
+                    "太郎の幻影「ずっと...ここにいるんだ...」",
+                    "双子の幻影「永遠の展示品として...」",
+                    "朔夜の幻影「診察は...終わらない...」",
+                    "冥王丸「200年前、我は三手の儀に敗れて死んだ」",
+                    "冥王丸「だが、死の瞬間に呪術を完成させた」",
+                    "冥王丸「『敗者の魂を永遠に支配する術』をな」",
+                    "鈴音「じゃあ、みんなは...」",
+                    "冥王丸「我に敗れた者たちの魂だ」",
+                    "冥王丸「成仏など幻想...全ては我の掌中」",
+                    "冥王丸「そして君も…6体目として永遠に我がものとなる」"
+                ]
+            },
+            // シーン4: 最終決戦への挑戦状
+            {
+                title: "最終決戦への挑戦状",
+                texts: [
+                    "冥王丸「だが、つまらぬ勝利は望まぬ」",
+                    "冥王丸「最高の獲物には、最高の舞台を用意しよう」",
+                    "ナレーション「屋敷が変形し、巨大な闘技場に変わる」",
+                    "冥王丸「特別ルールを設けてやる」",
+                    "冥王丸「一、我は7体全ての能力を使える」",
+                    "冥王丸「二、2連敗で服2枚を失う」",
+                    "冥王丸「三、あいこでもダメージ」",
+                    "冥王丸「四、5ターンで決着せねば君の敗北」",
+                    "冥王丸「五、我が本気を出せば...フェイク率50%」",
+                    "鈴音「そんな...無理よ！」",
+                    "冥王丸「無理？それでこそ面白い」",
+                    "冥王丸「さあ、その恥ずかしい姿のまま」",
+                    "冥王丸「最後の三手の儀を始めようではないか」",
+                    "冥王丸「君が勝てば、全員本当に解放してやろう」",
+                    "冥王丸「負ければ...永遠に我が玩具だ」",
+                    "淫霊たち「鈴音...助けて...」"
+                ]
+            }
+        ];
+        
+        // 最初のシーンを表示
+        this.currentStoryScene = 0;
+        this.displayMeioumaruStoryScene();
+    }
+
+    // 冥王丸戦ストーリー画面表示
+    showMeioumaruStoryScreen() {
+        // バトル画面を隠す
+        this.elements.battleScreen.style.display = 'none';
+        
+        // 既存のストーリー画面を表示
+        this.elements.storyScreen.style.display = 'block';
+        
+        // イベントリスナー設定
+        const nextBtn = this.elements.storyNextBtn;
+        
+        // 既存のイベントリスナーをクリア
+        const newNextBtn = nextBtn.cloneNode(true);
+        nextBtn.parentNode.replaceChild(newNextBtn, nextBtn);
+        this.elements.storyNextBtn = newNextBtn;
+        
+        newNextBtn.addEventListener('click', () => this.nextMeioumaruStoryScene());
+        
+        // キーボードイベント
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space' && this.elements.storyScreen.style.display === 'block') {
+                e.preventDefault();
+                this.nextMeioumaruStoryScene();
+            }
+        });
+        
+        console.log('冥王丸戦ストーリー画面表示完了');
+    }
+
+    // 冥王丸戦ストーリーシーン表示
+    displayMeioumaruStoryScene() {
+        if (this.currentStoryScene >= this.meioumaruStoryScenes.length) {
+            // ストーリー終了、冥王丸戦開始
+            this.startMeioumaruBattle();
+            return;
+        }
+        
+        const scene = this.meioumaruStoryScenes[this.currentStoryScene];
+        
+        // タイトルと進捗を含めたテキストを作成
+        const fullTexts = [
+            `${scene.title} ${this.currentStoryScene + 1}/${this.meioumaruStoryScenes.length}`,
+            '', // 空行
+            ...scene.texts
+        ];
+        
+        // 既存のtypewriterEffectを使用
+        const fullText = fullTexts.join('\n\n');
+        this.typewriterEffect(fullText);
+        
+        console.log(`冥王丸戦ストーリーシーン ${this.currentStoryScene + 1} 表示`);
+    }
+
+
+
+    // 次の冥王丸戦ストーリーシーンへ
+    nextMeioumaruStoryScene() {
+        this.currentStoryScene++;
+        this.displayMeioumaruStoryScene();
+    }
+
+    // 冥王丸戦開始
+    startMeioumaruBattle() {
+        console.log('冥王丸戦開始処理');
+        
+        // ストーリー画面を隠す
+        this.elements.storyScreen.style.display = 'none';
+        
+        // バトル画面を表示
+        this.elements.battleScreen.style.display = 'block';
+        
+        // ゲーム状態をリセット
+        if (window.battleSystem) {
+            window.battleSystem.resetGame();
+            window.battleSystem.switchGhost('meiomaru');
+        }
+        
+        // 敵名表示を更新
+        const enemyNameElements = document.querySelectorAll('.enemy-wins');
+        enemyNameElements.forEach(elem => {
+            elem.innerHTML = '冥王丸: <span id="enemy-wins">0</span>勝';
+        });
+        
+        // HP表示の敵名も更新
+        const enemyHpLabel = document.querySelector('.enemy-hp .hp-label');
+        if (enemyHpLabel) {
+            enemyHpLabel.textContent = '冥王丸（最終ボス）';
+        }
+        
+        // DOM要素の参照を再取得（冥王丸戦用に更新）
+        this.elements.enemyWins = document.getElementById('enemy-wins');
+        
+        // 鈴音の服装をナース服に変更（露出レベル1でナース服）
+        this.changeToNurseOutfit();
+        
+        // 冥王丸戦用のログ表示
+        this.elements.logContent.innerHTML = '<p class="log-entry system">冥王丸との最終決戦開始...</p>';
+        
+        // 特別ルール表示
+        setTimeout(() => {
+            this.addLog('【特別ルール発動】', 'special');
+            this.addLog('• 冥王丸は7体全ての能力を使える', 'system');
+            this.addLog('• 2連敗で服2枚失う', 'system');
+            this.addLog('• あいこでもダメージ', 'system');  
+            this.addLog('• 5ターンで決着せねば敗北', 'system');
+            this.addLog('• フェイク率50%の超高確率', 'system');
+        }, 1000);
+        
+        // UI更新とラウンド開始
+        this.updateUI();
+        this.startNewRound();
+        
+        console.log('冥王丸戦開始完了 - enemy-wins要素:', this.elements.enemyWins);
+    }
+
+    // ナース服に着替える処理
+    changeToNurseOutfit() {
+        // 露出レベルを1に設定（ナース服状態）
+        if (window.battleSystem) {
+            window.battleSystem.gameState.exposureLevel = 1;
+        }
+        
+        // プレイヤー画像をナース服に変更
+        const emojiSpan = this.elements.playerImage.querySelector('.character-emoji');
+        if (emojiSpan) {
+            emojiSpan.textContent = '👩‍⚕️'; // ナース服絵文字
+        }
+        
+        // 服装名と説明を更新
+        this.elements.exposureName.textContent = 'ナース服';
+        this.elements.exposureDesc.textContent = '朔夜からの最後の処方。えちえちな特別仕様';
+        
+        console.log('鈴音がナース服に着替えました');
     }
 
     // 勝利タイプを判定
@@ -1820,11 +2124,14 @@ class GameController {
             elem.innerHTML = '朔夜: <span id="enemy-wins">0</span>勝';
         });
         
-        // HPラベルも更新
+        // HP表示の敵名も更新
         const enemyHpLabel = document.querySelector('.enemy-hp .hp-label');
         if (enemyHpLabel) {
             enemyHpLabel.textContent = '朔夜（淫霊）';
         }
+        
+        // DOM要素の参照を再取得（朔夜戦用に更新）
+        this.elements.enemyWins = document.getElementById('enemy-wins');
         
         // 朔夜戦用のログ表示
         this.elements.logContent.innerHTML = '<p class="log-entry system">朔夜との診察開始...</p>';
@@ -1833,7 +2140,7 @@ class GameController {
         this.updateUI();
         this.startNewRound();
         
-        console.log('朔夜戦開始完了');
+        console.log('朔夜戦開始完了 - enemy-wins要素:', this.elements.enemyWins);
     }
     
     // 双子戦用ストーリーシーン表示
@@ -2171,12 +2478,21 @@ class GameController {
     
     // タイプライター効果（話者別表示）
     typewriterEffect(text) {
-        const textElement = this.elements.storyText;
-        if (!textElement) return;
+        console.log('=== typewriterEffect 開始 ===');
+        console.log('入力テキスト:', text);
+        
+        // 直接DOM要素を取得
+        const textElement = document.getElementById('story-text');
+        console.log('textElement:', textElement);
+        if (!textElement) {
+            console.error('story-text要素が見つかりません！');
+            return;
+        }
         
         // ボタンを無効化
-        if (this.elements.storyNextBtn) {
-            this.elements.storyNextBtn.disabled = true;
+        const storyNextBtn = document.getElementById('story-next-btn');
+        if (storyNextBtn) {
+            storyNextBtn.disabled = true;
         }
         
         textElement.innerHTML = '';
@@ -2193,8 +2509,9 @@ class GameController {
             if (currentDialogueIndex >= dialogues.length) {
                 // 全て完了
                 textElement.classList.remove('typing');
-                if (this.elements.storyNextBtn) {
-                    this.elements.storyNextBtn.disabled = false;
+                const storyNextBtn = document.getElementById('story-next-btn');
+                if (storyNextBtn) {
+                    storyNextBtn.disabled = false;
                 }
                 return;
             }
@@ -2294,8 +2611,15 @@ class GameController {
                             
                             console.log('話者判定中 - テキスト:', cleanText);
                             
-                            // 直接的な話者表記をチェック（最優先）
-                            if (cleanText.startsWith('鈴音「') || cleanText.includes('鈴音「')) {
+                            console.log('=== 話者判定開始 ===');
+                            console.log('元テキスト:', text);
+                            console.log('クリーンテキスト:', cleanText);
+                            
+                            // 直接的な話者表記をチェック（最優先）- ナレーションを最初に判定
+                            if (cleanText.startsWith('ナレーション「') || cleanText.includes('ナレーション「')) {
+                                speaker = 'ナレーション';
+                                console.log('→ ナレーションとして判定（直接表記）');
+                            } else if (cleanText.startsWith('鈴音「') || cleanText.includes('鈴音「')) {
                                 speaker = '鈴音';
                                 console.log('→ 鈴音として判定（直接表記）');
                             } else if (cleanText.includes('太郎「')) {
@@ -2316,10 +2640,92 @@ class GameController {
                             } else if (cleanText.startsWith('朔夜「') || cleanText.includes('朔夜「')) {
                                 speaker = '朔夜';
                                 console.log('→ 朔夜として判定（直接表記）');
+                            } else if (cleanText.startsWith('冥王丸「') || cleanText.includes('冥王丸「')) {
+                                speaker = '冥王丸';
+                                console.log('→ 冥王丸として判定（直接表記）');
+                            } else if (cleanText.includes('朔夜の幻影「') || cleanText.startsWith('朔夜の幻影「')) {
+                                speaker = '朔夜の幻影';
+                                console.log('→ 朔夜の幻影として判定（直接表記）');
+                            } else if (cleanText.includes('双子の幻影「') || cleanText.startsWith('双子の幻影「')) {
+                                speaker = '双子の幻影';
+                                console.log('→ 双子の幻影として判定（直接表記）');
+                            } else if (cleanText.includes('太郎の幻影「') || cleanText.startsWith('太郎の幻影「')) {
+                                speaker = '太郎の幻影';
+                                console.log('→ 太郎の幻影として判定（直接表記）');
+                            } else if (cleanText.includes('栗之助の幻影「') || cleanText.startsWith('栗之助の幻影「')) {
+                                speaker = '栗之助の幻影';
+                                console.log('→ 栗之助の幻影として判定（直接表記）');
+                            } else if (cleanText.includes('彩人の幻影「') || cleanText.startsWith('彩人の幻影「')) {
+                                speaker = '彩人の幻影';
+                                console.log('→ 彩人の幻影として判定（直接表記）');
+                            } else if (cleanText.includes('の幻影「') || cleanText.includes('幻影「')) {
+                                speaker = '幻影';
+                                console.log('→ 幻影として判定（直接表記）');
+                            } else if (cleanText.startsWith('謎の声「') || cleanText.includes('謎の声「')) {
+                                speaker = '謎の声';
+                                console.log('→ 謎の声として判定（直接表記）');
+                            } else if (cleanText.startsWith('淫霊たち「') || cleanText.includes('淫霊たち「')) {
+                                speaker = '淫霊たち';
+                                console.log('→ 淫霊たちとして判定（直接表記）');
+                            } else {
+                                // 直接表記で判定できなかった場合のみ、内容による判定を実行
+                                if (cleanText.includes('見事な症例でした') || 
+                                cleanText.includes('薬品臭い服装では') ||
+                                cleanText.includes('私の最後の処方です') ||
+                                cleanText.includes('特別仕様です') ||
+                                cleanText.includes('医学的に最適化') ||
+                                cleanText.includes('5体全員、成仏できます') ||
+                                cleanText.includes('何か違う') ||
+                                cleanText.includes('本当に成仏でき') ||
+                                cleanText.includes('診察は...終わらない')) {
+                                speaker = '朔夜';
+                                console.log('→ 朔夜として判定（冥王丸戦）');
                             }
-                            
-                            // 朔夜の台詞判定を最優先に（話者名削除前）
-                            if (cleanText.includes('新しい患者さんですね') ||
+                            else if (cleanText.includes('初めまして、淫術師') ||
+                                cleanText.includes('我は冥王丸') ||
+                                cleanText.includes('創造主にして支配者') ||
+                                cleanText.includes('真実を教えてやろう') ||
+                                cleanText.includes('200年前、我は') ||
+                                cleanText.includes('死の瞬間に呪術を') ||
+                                cleanText.includes('敗者の魂を永遠に') ||
+                                cleanText.includes('我に敗れた者たちの魂') ||
+                                cleanText.includes('成仏など幻想') ||
+                                cleanText.includes('6体目として永遠に') ||
+                                cleanText.includes('つまらぬ勝利は望まぬ') ||
+                                cleanText.includes('最高の獲物には') ||
+                                cleanText.includes('特別ルールを設けてやる') ||
+                                cleanText.includes('7体全ての能力を') ||
+                                cleanText.includes('2連敗で服2枚') ||
+                                cleanText.includes('5ターンで決着') ||
+                                cleanText.includes('フェイク率50%') ||
+                                cleanText.includes('無理？それでこそ面白い') ||
+                                cleanText.includes('最後の三手の儀を') ||
+                                cleanText.includes('永遠に我が玩具だ')) {
+                                speaker = '冥王丸';
+                                console.log('→ 冥王丸として判定（冥王丸戦）');
+                            }
+                            else if (cleanText.includes('これは...ナース服') ||
+                                cleanText.includes('朔夜さんの最後の言葉') ||
+                                cleanText.includes('とにかく屋敷から') ||
+                                cleanText.includes('開かない...？なぜ？') ||
+                                cleanText.includes('創造主...？5体の淫霊') ||
+                                cleanText.includes('じゃあ、みんなは') ||
+                                cleanText.includes('そんな...無理よ')) {
+                                speaker = '鈴音';
+                                console.log('→ 鈴音として判定（冥王丸戦）');
+                            }
+                            else if (cleanText.includes('朔夜消滅') ||
+                                cleanText.includes('えちえちナース服に着替えた') ||
+                                cleanText.includes('玄関に到着') ||
+                                cleanText.includes('屋敷全体が突然暗転') ||
+                                cleanText.includes('床に魔法陣が浮かび') ||
+                                cleanText.includes('幻影で5体の淫霊が') ||
+                                cleanText.includes('屋敷が変形し')) {
+                                speaker = 'ナレーション';
+                                console.log('→ ナレーションとして判定（冥王丸戦）');
+                                }
+                                // 既存の朔夜の台詞判定（直接表記がない場合のみ）
+                                else if (cleanText.includes('新しい患者さんですね') ||
                                 cleanText.includes('私は朔夜、元産婦人科医です') ||
                                 cleanText.includes('診断') ||
                                 cleanText.includes('患者') ||
@@ -2487,16 +2893,19 @@ class GameController {
                                 cleanText.includes('扉を開けると、そこは確かに服屋のフロアだった')) {
                                 speaker = 'ナレーション';
                                 console.log('→ ナレーションとして判定（特定フレーズ）');
-                            } else {
-                                console.log('→ デフォルト（ナレーション）:', speaker);
+                                } else {
+                                    console.log('→ デフォルト（ナレーション）:', speaker);
+                                }
                             }
                             
                             // 全ての判定が終わったら話者名と記号を削除
                             cleanText = cleanText.replace(/^。\s*/, '').trim();
-                            cleanText = cleanText.replace(/^(鈴音|太郎|陽真|陰真|栗之助|彩人|朔夜)/, '').trim();
+                            cleanText = cleanText.replace(/^(鈴音|太郎|陽真|陰真|栗之助|彩人|朔夜|冥王丸|謎の声|淫霊たち|ナレーション|彩人の幻影|栗之助の幻影|太郎の幻影|双子の幻影|朔夜の幻影)/, '').trim();
                             cleanText = cleanText.replace(/「|」/g, '').trim();
                             
                             if (cleanText) {
+                                console.log('=== 最終判定結果 ===');
+                                console.log('話者:', speaker, 'テキスト:', cleanText);
                                 dialogues.push({ speaker: speaker, text: cleanText });
                             }
                         }
@@ -2533,7 +2942,9 @@ class GameController {
                             let speaker = 'ナレーション';
                             
                             // 話者名を直接含むかチェック
-                            if (trimmed.includes('鈴音「')) {
+                            if (trimmed.includes('ナレーション「')) {
+                                speaker = 'ナレーション';
+                            } else if (trimmed.includes('鈴音「')) {
                                 speaker = '鈴音';
                             } else if (trimmed.includes('太郎「')) {
                                 speaker = '太郎';
@@ -2547,6 +2958,22 @@ class GameController {
                                 speaker = '彩人';
                             } else if (trimmed.includes('朔夜「')) {
                                 speaker = '朔夜';
+                            } else if (trimmed.includes('冥王丸「')) {
+                                speaker = '冥王丸';
+                            } else if (trimmed.includes('朔夜の幻影「')) {
+                                speaker = '朔夜の幻影';
+                            } else if (trimmed.includes('双子の幻影「')) {
+                                speaker = '双子の幻影';
+                            } else if (trimmed.includes('太郎の幻影「')) {
+                                speaker = '太郎の幻影';
+                            } else if (trimmed.includes('栗之助の幻影「')) {
+                                speaker = '栗之助の幻影';
+                            } else if (trimmed.includes('彩人の幻影「')) {
+                                speaker = '彩人の幻影';
+                            } else if (trimmed.includes('謎の声「')) {
+                                speaker = '謎の声';
+                            } else if (trimmed.includes('淫霊たち「')) {
+                                speaker = '淫霊たち';
                             }
                             // 台詞内容で判定
                             else if (cleanQuote.includes('分かりました') || 
@@ -2635,11 +3062,25 @@ class GameController {
             '陽真': '陽真',
             '陰真': '陰真',
             '朔夜': '朔夜',
+            '冥王丸': '冥王丸',
+            '幻影': '幻影',
+            '朔夜の幻影': '朔夜の幻影',
+            '双子の幻影': '双子の幻影',
+            '太郎の幻影': '太郎の幻影',
+            '栗之助の幻影': '栗之助の幻影',
+            '彩人の幻影': '彩人の幻影',
+            '謎の声': '謎の声',
+            '淫霊たち': '淫霊たち',
             '老人': '老人',
             'ナレーション': 'ナレーション'
         };
         
         // 話者名を作成
+        console.log('!!! 黄色文字表示 !!!');
+        console.log('dialogue.speaker:', dialogue.speaker);
+        console.log('speakerNames[dialogue.speaker]:', speakerNames[dialogue.speaker]);
+        console.log('dialogue.text:', dialogue.text);
+        
         const speakerDiv = document.createElement('div');
         speakerDiv.className = 'speaker-name';
         speakerDiv.textContent = speakerNames[dialogue.speaker] + '：';
@@ -3049,6 +3490,8 @@ class GameController {
             const currentMode = window.battleSystem && window.battleSystem.currentTwin ? 
                 window.battleSystem.currentTwin : 'yoma';
             displayName = currentMode === 'yoma' ? '陽真' : '陰真';
+        } else if (this.currentGhost === 'sakuya') {
+            ghostData = { name: '朔夜' };
         }
         
         if (ghostData) {
@@ -3135,7 +3578,7 @@ class GameController {
         this.isAyatoInfoScreen = false;
         
         // 指定された敵に切り替え
-        if (ghostId === 'taro' || ghostId === 'kurinosuke' || ghostId === 'ayato' || ghostId === 'twins') {
+        if (ghostId === 'taro' || ghostId === 'kurinosuke' || ghostId === 'ayato' || ghostId === 'twins' || ghostId === 'sakuya' || ghostId === 'meiomaru') {
             this.currentGhost = ghostId;
             
             // 開発用：初期化してからスタート
@@ -3146,8 +3589,12 @@ class GameController {
             // ログをクリア
             const enemyName = ghostId === 'kurinosuke' ? '栗之助' : 
                              ghostId === 'taro' ? '太郎' : 
-                             ghostId === 'twins' ? '陽真' : '彩人';
-            this.elements.logContent.innerHTML = `<p class="log-entry system">${enemyName}との心理戦開始...</p>`;
+                             ghostId === 'twins' ? '陽真' : 
+                             ghostId === 'sakuya' ? '朔夜' :
+                             ghostId === 'meiomaru' ? '冥王丸' : '彩人';
+            const battleMessage = ghostId === 'sakuya' ? `${enemyName}との診察開始...` : 
+                                 ghostId === 'meiomaru' ? `${enemyName}との最終決戦開始...` : `${enemyName}との心理戦開始...`;
+            this.elements.logContent.innerHTML = `<p class="log-entry system">${battleMessage}</p>`;
             
             console.log(`直接${enemyName}戦を開始`);
         } else if (ghostId === 'taro-story') {
@@ -3216,6 +3663,20 @@ class GameController {
             // 朔夜戦ストーリー表示
             this.showSakuyaStory();
             console.log('直接朔夜戦ストーリーを開始');
+            return;
+        } else if (ghostId === 'meiomaru-story') {
+            // 冥王丸戦ストーリーから開始（最終ボス）
+            this.currentGhost = 'meiomaru';
+            window.battleSystem.resetGame();
+            window.battleSystem.switchGhost('meiomaru');
+            this.updateGhostUI();
+            
+            // HPのみリセット
+            window.battleSystem.gameState.enemyHP = 100;
+            
+            // 冥王丸戦ストーリー表示
+            this.startMeioumaruStory();
+            console.log('直接冥王丸戦ストーリーを開始');
             return;
         }
         

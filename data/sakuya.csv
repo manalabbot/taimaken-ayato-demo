@@ -1,0 +1,2 @@
+﻿name,id,tellRate,fakeRate,provokeResponse,stone,scissors,paper,specialPattern
+朔夜,sakuya,0.20,0.25,0.30,0.33,0.33,0.34,hp-dependent
