@@ -1,0 +1,1476 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>淫術拳 〜封印を解かれし巫女〜</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        @import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cinzel+Decorative:wght@400;700&display=swap');
+        
+        body {
+            background: radial-gradient(ellipse at center, #2d1b45 0%, #1a0a2e 50%, #0f0033 100%);
+            color: white;
+            font-family: 'Cinzel', serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* 背景画像用のコンテナ */
+        .background-image {
+            position: fixed; /* absoluteからfixedに変更 */
+            top: 0;
+            left: 0;
+            width: 100vw;  /* 100%から100vwに変更 */
+            height: 100vh; /* 100%から100vhに変更 */
+            background-image: url('background.jpg'); /* 後で画像パスを設定 */
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            opacity: 0.3; /* 透明度設定 */
+            z-index: 0; /* -1から0に変更 */
+            pointer-events: none; /* クリック不可にする */
+        }
+
+        /* ========== ヘッダー部分 ========== */
+        .header {
+            height: 80px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0.2) 100%);
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            align-items: center;
+            padding: 0 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .hp-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .hp-section.player {
+            justify-content: flex-start;
+        }
+
+        .hp-section.enemy {
+            justify-content: flex-end;
+        }
+
+        .hp-label {
+            color: #ddd;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: 'Cinzel', serif;
+            white-space: nowrap;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+            letter-spacing: 1px;
+        }
+
+        .hp-bar-container {
+            width: 180px;
+            height: 22px;
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .hp-bar {
+            height: 100%;
+            transition: width 0.5s ease;
+        }
+
+        .hp-bar.player {
+            background: linear-gradient(90deg, #00ff00 0%, #66ff66 50%, #00ff00 100%);
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+        }
+
+        .hp-bar.enemy {
+            background: linear-gradient(90deg, #ff00ff 0%, #ff66ff 50%, #ff00ff 100%);
+            box-shadow: 0 0 10px rgba(255, 0, 255, 0.5);
+        }
+
+        .hp-text {
+            font-weight: bold;
+            font-size: 16px;
+            white-space: nowrap;
+        }
+
+        .hp-text.player {
+            color: #66ff66;
+            text-shadow: 0 0 5px rgba(0, 255, 0, 0.5);
+        }
+
+        .hp-text.enemy {
+            color: #ff66ff;
+            text-shadow: 0 0 5px rgba(255, 0, 255, 0.5);
+        }
+
+        .round-display {
+            text-align: center;
+        }
+
+        .round-text {
+            font-size: 42px;
+            font-weight: 600;
+            font-family: 'Cinzel Decorative', serif;
+            color: #ffd700;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 20px rgba(255, 215, 0, 0.3);
+            letter-spacing: 4px;
+        }
+
+        .score-display {
+            margin-top: 8px;
+            font-size: 18px;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .score-win { color: #66ff66; }
+        .score-draw { color: #ffd700; }
+        .score-lose { color: #ff66ff; }
+
+        /* ========== メインバトルエリア ========== */
+        .battle-area {
+            flex: 1;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding-bottom: 100px;  /* 下にパディングを追加して全体を上に押し上げ */
+            z-index: 1;
+        }
+
+        .fighters-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 300px;
+        }
+
+        .fighter {
+            position: relative;
+            text-align: center;
+        }
+
+        .fighter-name {
+            font-size: 28px;
+            font-weight: 600;
+            font-family: 'Cinzel', serif;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8), 0 0 15px rgba(255, 255, 255, 0.2);
+            letter-spacing: 2px;
+        }
+
+        .fighter-name.player { color: #66ff66; }
+        .fighter-name.enemy { color: #ff66ff; }
+
+        .fighter-emoji {
+            font-size: 140px;
+            filter: drop-shadow(0 0 30px rgba(255, 255, 255, 0.2));
+            animation: float 3s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+
+        .vs-display {
+            font-size: 72px;
+            font-weight: 700;
+            font-family: 'Cinzel Decorative', serif;
+            color: #ffd700;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.9), 0 0 30px rgba(255, 215, 0, 0.4);
+            letter-spacing: 6px;
+        }
+
+        /* 露出表示（左下） */
+        .exposure-display {
+            position: absolute;
+            left: 50px;
+            bottom: 200px;
+        }
+
+        .exposure-dots {
+            font-size: 24px;
+            color: #ffd700;
+            letter-spacing: 5px;
+            margin-bottom: 8px;
+        }
+
+        .exposure-label {
+            color: #ff6666;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .exposure-desc {
+            color: #ccc;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+
+        /* 敵メッセージ（右下） */
+        /* 挑発判明メッセージ（enemy-messageの上） */
+        .provoke-reveal {
+            position: absolute;
+            right: 50px;
+            bottom: 280px;
+            background: rgba(255, 215, 0, 0.9);
+            color: #333;
+            padding: 8px 15px;
+            border-radius: 15px;
+            border: 1px solid #ffd700;
+            font-size: 12px;
+            font-weight: 600;
+            box-shadow: 0 2px 8px rgba(255, 215, 0, 0.3);
+            max-width: 280px;
+            text-align: center;
+            backdrop-filter: blur(5px);
+            word-wrap: break-word;
+            line-height: 1.2;
+            display: none;
+        }
+
+        .enemy-message {
+            position: absolute;
+            right: 50px;
+            bottom: 200px;
+            background: rgba(156, 39, 176, 0.2);
+            border: 2px solid rgba(156, 39, 176, 0.6);
+            border-radius: 25px;
+            padding: 20px 30px;
+            font-size: 18px;
+            color: white;
+            box-shadow: 0 0 20px rgba(156, 39, 176, 0.3);
+        }
+
+        /* ========== コントロール部分（最適化サイズ） ========== */
+        .control-container {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 200px;  /* 高さを拡大 */
+            background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.8) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 10px 0;
+            z-index: 2;
+        }
+
+        /* 中央コンテンツ */
+        .control-content {
+            display: flex;
+            gap: 15px;
+            max-width: 750px;
+            width: 100%;
+            height: 180px;  /* 高さを拡大 */
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* ハンドセレクション（300×180） */
+        .hand-selection {
+            background: rgba(25, 25, 45, 0.9);
+            border: 2px solid rgba(120, 120, 160, 0.5);
+            border-radius: 12px;
+            padding: 10px;
+            width: 300px;  /* 300に狭める */
+            height: 180px; /* 180維持 */
+            display: flex;
+            flex-direction: column;
+        }
+
+        .selection-status {
+            text-align: center;
+            color: #ffd700;
+            font-size: 14px;
+            margin-bottom: 8px;
+            height: 20px;
+        }
+
+        /* 手選択エリア */
+        .hands-and-actions {
+            flex: 1;
+            display: flex;
+            gap: 8px;
+        }
+
+        /* 手選択ボタンエリア（133×128） */
+        .hand-buttons-area {
+            width: 160px;  /* 少し幅を広く */
+            height: 128px; /* 固定高さ */
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .hand-btn {
+            flex: 1;
+            background: linear-gradient(135deg, rgba(50, 50, 90, 0.9) 0%, rgba(35, 35, 70, 0.9) 100%);
+            border: 2px solid rgba(120, 120, 160, 0.6);
+            border-radius: 8px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            padding: 0 8px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+            min-height: 36px;  /* 少し小さく */
+            font-size: 14px;   /* フォントサイズ調整 */
+        }
+
+        .hand-btn:hover {
+            background: linear-gradient(135deg, rgba(60, 60, 100, 0.9) 0%, rgba(40, 40, 80, 0.9) 100%);
+            border-color: rgba(150, 150, 200, 0.7);
+            transform: translateX(2px);
+        }
+
+        .hand-btn.selected {
+            background: linear-gradient(135deg, rgba(33, 150, 243, 0.7) 0%, rgba(21, 101, 192, 0.7) 100%);
+            border-color: #2196f3;
+            box-shadow: 0 0 12px rgba(33, 150, 243, 0.5), inset 0 0 8px rgba(33, 150, 243, 0.2);
+        }
+
+        .hand-icon {
+            font-size: 16px;
+            margin-right: 8px;
+        }
+
+        .hand-name {
+            font-size: 14px;
+            font-weight: bold;
+            flex: 1;
+        }
+
+        .key-hint {
+            color: #bbb;
+            font-size: 12px;
+        }
+
+        /* アクションボタン（ハンドセレクション内に配置） */
+        .action-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 110px;  /* 幅を狭める */
+        }
+
+        .action-btn {
+            flex: 1;
+            border: none;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            min-height: 36px;
+        }
+
+        .reveal-btn {
+            background: linear-gradient(135deg, #4caf50 0%, #45a049 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(76, 175, 80, 0.3);
+        }
+
+        .reveal-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(76, 175, 80, 0.4);
+        }
+
+        .reveal-btn:disabled {
+            background: linear-gradient(135deg, #444 0%, #333 100%);
+            color: #666;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
+        .provoke-btn {
+            background: linear-gradient(135deg, #ef5350 0%, #e57373 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(239, 83, 80, 0.3);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 13px;
+        }
+
+        .provoke-btn:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(239, 83, 80, 0.4);
+        }
+
+        .restart-btn {
+            background: linear-gradient(135deg, #64b5f6 0%, #42a5f5 100%);
+            color: white;
+            box-shadow: 0 2px 8px rgba(100, 181, 246, 0.3);
+            font-size: 12px;
+        }
+
+        .restart-btn:hover:not(:disabled) {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(100, 181, 246, 0.4);
+        }
+        .restart-btn:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.5;
+        }
+
+        /* 服装変化シーン */
+        .clothing-change-scene {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background: linear-gradient(135deg, #2d1b45 0%, #1a0a2e 50%, #0f0033 100%);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .clothing-change-scene.active {
+            opacity: 1;
+        }
+
+        .pov-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .suzune-character {
+            position: relative;
+            width: 300px;
+            height: 400px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: all 0.3s ease;
+        }
+
+        .suzune-character.live-mode {
+            animation: breathing 4s ease-in-out infinite;
+        }
+
+        .character-base {
+            font-size: 200px;
+            transition: all 0.5s ease;
+        }
+
+        .character-base.live-mode {
+            animation: clothSway 3s ease-in-out infinite;
+        }
+
+        /* 2D Live風アニメーション */
+        @keyframes breathing {
+            0%, 100% { 
+                transform: translateY(0px) scale(1); 
+            }
+            50% { 
+                transform: translateY(-3px) scale(1.02); 
+            }
+        }
+
+        @keyframes clothSway {
+            0%, 100% { 
+                transform: rotate(-0.8deg); 
+            }
+            50% { 
+                transform: rotate(0.8deg); 
+            }
+        }
+
+        /* 触れられた時のリアクション */
+        .character-base.touched {
+            animation: trembling 0.6s ease-in-out;
+            filter: hue-rotate(15deg) brightness(1.1);
+        }
+
+        @keyframes trembling {
+            0%, 100% { transform: translateX(0px); }
+            10% { transform: translateX(-2px) rotate(-1deg); }
+            20% { transform: translateX(2px) rotate(1deg); }
+            30% { transform: translateX(-1px) rotate(-0.5deg); }
+            40% { transform: translateX(1px) rotate(0.5deg); }
+            50% { transform: translateX(-1px) rotate(-0.3deg); }
+            60% { transform: translateX(1px) rotate(0.3deg); }
+            70% { transform: translateX(-0.5px); }
+            80% { transform: translateX(0.5px); }
+            90% { transform: translateX(-0.2px); }
+        }
+
+        /* 表情変化エフェクト */
+        .character-base.shy {
+            animation: blinking 2s ease-in-out infinite;
+            filter: hue-rotate(30deg) saturate(1.2);
+        }
+
+        @keyframes blinking {
+            0%, 90%, 100% { opacity: 1; }
+            95% { opacity: 0.7; }
+        }
+
+        /* 恥ずかしがる表情の段階変化 */
+        .character-base.embarrassed {
+            animation: embarrassedReaction 1.5s ease-in-out;
+            filter: hue-rotate(45deg) brightness(1.2) saturate(1.3);
+        }
+
+        @keyframes embarrassedReaction {
+            0% { transform: scale(1) rotate(0deg); }
+            20% { transform: scale(0.95) rotate(-2deg); }
+            40% { transform: scale(1.05) rotate(1deg); }
+            60% { transform: scale(0.98) rotate(-0.5deg); }
+            80% { transform: scale(1.02) rotate(0.5deg); }
+            100% { transform: scale(1) rotate(0deg); }
+        }
+
+        .player-hand {
+            position: absolute;
+            bottom: 100px;
+            right: 200px;
+            font-size: 80px;
+            cursor: pointer;
+            transition: transform 0.3s ease;
+        }
+
+        .player-hand:hover {
+            transform: scale(1.1);
+        }
+
+        .player-hand.grabbing {
+            transform: scale(0.9) rotate(15deg);
+        }
+
+        .scene-instruction {
+            position: absolute;
+            bottom: 50px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 30px;
+            border-radius: 25px;
+            border: 2px solid #666;
+            color: white;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        /* 退魔録（400×180） */
+        .log-panel {
+            width: 400px;  /* 400に変更 */
+            height: 180px; /* 180に変更 */
+            background: rgba(0, 0, 0, 0.9);
+            border: 2px solid rgba(100, 100, 150, 0.4);
+            border-radius: 10px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .log-header {
+            height: 28px;  /* 小さく */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            font-weight: 600;
+            font-family: 'Cinzel', serif;
+            color: #ffd700;
+            background: rgba(0, 0, 0, 0.6);
+            border-bottom: 1px solid rgba(100, 100, 150, 0.4);
+            text-shadow: 0 0 8px rgba(255, 215, 0, 0.3);
+            letter-spacing: 1px;
+        }
+
+        .log-content {
+            flex: 1;
+            padding: 6px 8px;
+            overflow-y: auto;
+            font-size: 15px;
+            font-family: 'Cinzel', serif;
+            line-height: 1.4;
+            color: #f0f0f0;
+        }
+
+        .log-content::-webkit-scrollbar {
+            width: 4px;
+        }
+
+        .log-content::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+        }
+
+        .log-content::-webkit-scrollbar-thumb {
+            background: rgba(100, 100, 150, 0.6);
+            border-radius: 2px;
+        }
+
+        .log-entry {
+            margin-bottom: 5px;
+            padding: 3px 0;
+            border-bottom: 1px solid rgba(100, 100, 150, 0.15);
+            font-size: 14px;
+        }
+
+        .log-round { 
+            color: #e091e0; 
+            font-weight: 600; 
+            text-shadow: 0 0 5px rgba(224, 145, 224, 0.3);
+        }
+        .log-damage { 
+            color: #ff6b6b; 
+            font-weight: 500;
+            text-shadow: 0 0 3px rgba(255, 107, 107, 0.3);
+        }
+        .log-gesture {
+            color: #dda0dd;
+            font-style: italic;
+            text-shadow: 0 0 3px rgba(221, 160, 221, 0.4);
+        }
+        .log-message { 
+            color: #ffd93d; 
+            text-shadow: 0 0 3px rgba(255, 217, 61, 0.2);
+        }
+    </style>
+</head>
+<body>
+    <!-- 背景画像レイヤー -->
+    <div class="background-image"></div>
+    
+    <!-- ヘッダー -->
+    <div class="header">
+        <div class="hp-section player">
+            <span class="hp-label">鈴音（プレイヤー）</span>
+            <div class="hp-bar-container">
+                <div class="hp-bar player" id="player-hp-bar" style="width: 100%"></div>
+            </div>
+            <span class="hp-text player">HP: <span id="player-hp">100</span>/<span id="player-max-hp">100</span></span>
+        </div>
+
+        <div class="round-display">
+            <div class="round-text">ROUND <span id="round">1</span></div>
+            <div class="score-display">
+                <span>鈴音: <span class="score-win" id="player-wins">0</span>勝</span>
+                <span>彩人: <span class="score-lose" id="enemy-wins">0</span>勝</span>
+            </div>
+        </div>
+
+        <div class="hp-section enemy">
+            <span class="hp-text enemy">HP: <span id="enemy-hp">100</span>/100</span>
+            <div class="hp-bar-container">
+                <div class="hp-bar enemy" id="enemy-hp-bar" style="width: 100%"></div>
+            </div>
+            <span class="hp-label">彩人（淫霊）</span>
+        </div>
+    </div>
+
+    <!-- バトルエリア -->
+    <div class="battle-area">
+        <div class="fighters-container">
+            <div class="fighter">
+                <div class="fighter-name player">鈴音</div>
+                <div class="fighter-emoji">💋</div>
+            </div>
+
+            <div class="fighter">
+                <div class="fighter-name enemy">彩人</div>
+                <div class="fighter-emoji">👻</div>
+            </div>
+        </div>
+
+        <div class="exposure-display">
+            <div class="exposure-dots">●○○○○</div>
+            <div class="exposure-label">完全装備</div>
+            <div class="exposure-desc">退淫師としての正装</div>
+        </div>
+
+        <div class="provoke-reveal" id="provoke-reveal"></div>
+        <div class="enemy-message"></div>
+    </div>
+
+    <!-- 服装変化シーン -->
+    <div class="clothing-change-scene" id="clothing-change-scene" style="display: none;">
+        <div class="pov-container">
+            <div class="suzune-character" id="suzune-character">
+                <!-- 鈴音の立ち絵（差分対応） -->
+                <div class="character-base">👘</div>
+            </div>
+            <div class="scene-instruction">
+                <div class="instruction-text">クリックまたはSPACE/ENTERキーで進む</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- コントロール（画像と同サイズ） -->
+    <div class="control-container">
+        <div class="control-content">
+            <!-- ハンドセレクション（400×180、アクションボタン内包） -->
+            <div class="hand-selection">
+                <div class="selection-status" id="selection-status">選択: なし</div>
+                <div class="hands-and-actions">
+                    <!-- 手選択ボタンエリア -->
+                    <div class="hand-buttons-area">
+                        <button class="hand-btn" onclick="selectHand('stone')">
+                            <span class="hand-icon">🪨</span>
+                            <span class="hand-name">石拳</span>
+                            <span class="key-hint">KEY: 1</span>
+                        </button>
+                        <button class="hand-btn" onclick="selectHand('scissors')">
+                            <span class="hand-icon">✂️</span>
+                            <span class="hand-name">剪刀</span>
+                            <span class="key-hint">KEY: 2</span>
+                        </button>
+                        <button class="hand-btn" onclick="selectHand('paper')">
+                            <span class="hand-icon">🌊</span>
+                            <span class="hand-name">布掌</span>
+                            <span class="key-hint">KEY: 3</span>
+                        </button>
+                    </div>
+
+                    <!-- アクションボタン -->
+                    <div class="action-buttons">
+                        <button class="action-btn reveal-btn" id="reveal-btn" onclick="battle()" disabled>
+                            SPACE: 公開
+                        </button>
+                        <button class="action-btn provoke-btn" onclick="provoke()">
+                            P: 挑発 (<span id="provoke-count">2</span>)
+                        </button>
+                        <button class="action-btn restart-btn" id="restart-btn" onclick="restartRead()" disabled>
+                            R: 読み直し (<span id="restart-count">1</span>)
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 退魔録 -->
+            <div class="log-panel">
+                <div class="log-header">退魔録</div>
+                <div class="log-content" id="log">
+                    <div class="log-entry">
+                        ⚔️ 彩人との戦闘開始
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ゲーム設定（CSV等で外部管理可能）
+        const gameConfig = {
+            player: {
+                name: '鈴音',
+                emoji: '💋',
+                hp: 100
+            },
+            enemy: {
+                name: '彩人',
+                emoji: '👻',
+                hp: 100
+            },
+            background: {
+                image: 'background.jpg',
+                opacity: 0.3
+            },
+            messages: {
+                win: '勝利！{enemy}を退けました！',
+                lose: '敗北...{enemy}に敗れました...'
+            }
+        };
+
+        let gameState = {
+            round: 1,
+            playerHP: gameConfig.player.hp,
+            playerMaxHP: gameConfig.player.hp,
+            enemyHP: gameConfig.enemy.hp,
+            playerWins: 0,
+            enemyWins: 0,
+            draws: 0,
+            selected: null,
+            exposureLevel: 1,
+            provokeCount: 2,
+            provokeSuccess: false,
+            revealedGesture: null,
+            currentGesture: null,  // 現在の仕草を保存
+            restartCount: 1  // 読み直し回数
+        };
+
+        const handNames = {
+            stone: '石拳',
+            scissors: '剪刀',
+            paper: '布掌'
+        };
+
+        function selectHand(hand) {
+            document.querySelectorAll('.hand-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            
+            event.currentTarget.classList.add('selected');
+            gameState.selected = hand;
+            
+            document.getElementById('selection-status').textContent = `選択: ${handNames[hand]}`;
+            document.getElementById('reveal-btn').disabled = false;
+        }
+
+        function battle() {
+            if (!gameState.selected) return;
+            
+            const playerHand = gameState.selected;
+            
+            // 現在表示されている仕草を使用（ページロード時に設定済み）
+            const gestureResult = gameState.currentGesture;
+            
+            const enemyHand = getEnemyHandFromGesture(gestureResult);
+            
+            addLog(`[R${gameState.round}] 鈴音: ${handNames[playerHand]} vs 彩人: ${handNames[enemyHand]}`);
+            
+            const result = getResult(playerHand, enemyHand);
+            
+            // フェイク時のみ退魔録にメッセージを追加
+            if (gestureResult.type === 'fake') {
+                addLog(`💭 彩人の仕草はフェイクだった`, 'log-gesture');
+            }
+            
+            if (result === 'win') {
+                gameState.playerWins++;
+                gameState.enemyHP -= 20;
+                addLog(`[R${gameState.round}] 鈴音の勝利！${handNames[playerHand]}が${handNames[enemyHand]}を破った！`, 'log-round');
+                addLog(`[R${gameState.round}] ダメージ: 20`, 'log-damage');
+            } else if (result === 'lose') {
+                gameState.enemyWins++;
+                gameState.playerHP -= 20;
+                addLog(`[R${gameState.round}] 彩人の勝利...`, 'log-round');
+                addLog(`[R${gameState.round}] ダメージ: 20`, 'log-damage');
+                
+                // 敗北時露出レベル上昇
+                if (gameState.exposureLevel < 5) {
+                    gameState.exposureLevel++;
+                    const exposureData = exposureLevels[gameState.exposureLevel];
+                    addLog(`💔 露出レベル上昇: ${exposureData.name}`, 'log-round');
+                    
+                    // 服装変化シーンを開始
+                    setTimeout(() => {
+                        startClothingChangeScene(gameState.exposureLevel);
+                    }, 1000);
+                }
+            } else {
+                gameState.draws++;
+                addLog(`[R${gameState.round}] 引き分け`);
+            }
+            
+            // 公開後に読み直しボタンを有効化（読み直し回数が残っている場合のみ）
+            if (gameState.restartCount > 0) {
+                document.getElementById('restart-btn').disabled = false;
+            }
+            
+            // 結果を表示してから少し待ってから次のラウンドへ
+            setTimeout(() => {
+                // 読み直しボタンを無効化
+                document.getElementById('restart-btn').disabled = true;
+                
+                // 次のラウンドへ進む
+                proceedToNextRound();
+            }, 1500);  // 1.5秒後に次のラウンドへ
+        }
+        
+        function proceedToNextRound() {
+            gameState.round++;
+            updateDisplay();
+            resetSelection();
+            
+            // 次の戦闘用に新しい仕草を生成
+            gameState.currentGesture = getAyatoGestureMessage();
+            document.querySelector('.enemy-message').textContent = gameState.currentGesture.message;
+            
+            // 挑発表示をリセット
+            gameState.revealedGesture = false;
+            gameState.provokeSuccess = false;
+            document.getElementById('provoke-reveal').style.display = 'none';
+            
+            checkGameEnd();
+        }
+
+        function getEnemyHandFromGesture(gestureResult) {
+            if (gestureResult.type === 'hint') {
+                // 30%: 仕草通りの手を出す（ただし挑発成功後は15%フェイクあり）
+                if (gameState.provokeSuccess) {
+                    const fakeRand = Math.random();
+                    if (fakeRand < 0.15) {
+                        // 彩人側15%フェイク - 違う手を出す
+                        const otherHands = ['stone', 'scissors', 'paper'].filter(hand => hand !== gestureResult.hand);
+                        return otherHands[Math.floor(Math.random() * otherHands.length)];
+                    }
+                }
+                return gestureResult.hand;
+            } else if (gestureResult.type === 'fake') {
+                // 15%: フェイク - 仕草とは違う手をランダムで出す
+                const otherHands = ['stone', 'scissors', 'paper'].filter(hand => hand !== gestureResult.hand);
+                return otherHands[Math.floor(Math.random() * otherHands.length)];
+            } else {
+                // 55%: 通常の確率分布
+                const rand = Math.random();
+                if (rand < 0.33) return 'stone';
+                if (rand < 0.67) return 'scissors';
+                return 'paper';
+            }
+        }
+
+        function getResult(playerHand, enemyHand) {
+            if (playerHand === enemyHand) return 'draw';
+            const wins = {
+                stone: 'scissors',
+                scissors: 'paper',
+                paper: 'stone'
+            };
+            return wins[playerHand] === enemyHand ? 'win' : 'lose';
+        }
+
+        // 露出レベルデータ（CSVから取得）
+        const exposureLevels = {
+            1: { name: "完全装備", description: "退淫師としての正装", dots: "●○○○○" },
+            2: { name: "中装", description: "装備の一部喪失", dots: "●●○○○" },
+            3: { name: "軽装", description: "装備が大幅減少", dots: "●●●○○" },
+            4: { name: "薄装", description: "最小限の装備", dots: "●●●●○" },
+            5: { name: "露出", description: "絶体絶命", dots: "●●●●●" }
+        };
+
+        // 服装変化セリフ
+        const clothingDialogues = {
+            suzune: {
+                2: "きゃっ...！上着が...",
+                3: "やだ...スカートまで...恥ずかしい...",
+                4: "そんな...もうやめて...！",
+                5: "いや...こんな姿..."
+            },
+            ayato: {
+                2: "美しい...その乱れた姿も芸術だ",
+                3: "いいね...恥じらう表情が最高だよ",
+                4: "もう少しで完成だ...僕の作品が",
+                5: "素晴らしい...これぞ敗北の美学"
+            }
+        };
+
+        // 表示済みフラグ
+        const shownDialogues = {
+            2: false,
+            3: false,
+            4: false,
+            5: false
+        };
+
+        // CSV画像管理システム
+        let characterImages = {};
+        
+        // 服装差分データ（フォールバック用）
+        const clothingLevels = {
+            1: '👘',
+            2: '🎽', 
+            3: '👙',
+            4: '💋',
+            5: '❤️'
+        };
+
+        // CSV画像データを読み込む関数
+        async function loadCharacterImages() {
+            try {
+                const response = await fetch('data/character_images.csv');
+                const csvText = await response.text();
+                
+                const lines = csvText.split('\n');
+                const headers = lines[0].split(',');
+                
+                for (let i = 1; i < lines.length; i++) {
+                    if (lines[i].trim() === '') continue;
+                    
+                    const values = lines[i].split(',');
+                    const imageData = {};
+                    
+                    headers.forEach((header, index) => {
+                        imageData[header.trim()] = values[index] ? values[index].trim() : '';
+                    });
+                    
+                    const key = `${imageData.character_id}_lv${imageData.level}_${imageData.expression}`;
+                    characterImages[key] = imageData;
+                }
+                
+                console.log('画像データ読み込み完了:', characterImages);
+            } catch (error) {
+                console.warn('画像データ読み込み失敗、絵文字フォールバックを使用:', error);
+            }
+        }
+
+        // 画像パスを取得する関数
+        function getCharacterImage(characterId, level, expression = 'normal') {
+            const key = `${characterId}_lv${level}_${expression}`;
+            
+            if (characterImages[key]) {
+                return characterImages[key].image_path;
+            }
+            
+            // フォールバック: 絵文字を返す
+            return null;
+        }
+
+        // キャラクター表示を更新する関数
+        function updateCharacterDisplay(level, expression = 'normal') {
+            const characterElement = document.querySelector('.character-base');
+            const imagePath = getCharacterImage('suzune', level, expression);
+            
+            if (imagePath) {
+                // 画像が利用可能な場合
+                characterElement.innerHTML = `<img src="${imagePath}" alt="鈴音 レベル${level}" style="width: 100%; height: 100%; object-fit: contain;">`;
+            } else {
+                // フォールバック: 絵文字表示
+                characterElement.textContent = clothingLevels[level];
+            }
+        }
+
+        // 服装変化シーン制御
+        let currentClothingScene = {
+            active: false,
+            targetLevel: 1,
+            currentStep: 0
+        };
+
+        // 彩人の仕草システム
+        const ayatoGestures = {
+            stone: [
+                "表情が少し硬くなった...",
+                "何かを堅く守るような雰囲気を見せる...",
+                "視線に意志の強さが宿っている..."
+            ],
+            scissors: [
+                "指先に繊細な動きが見える...",
+                "何かを切り分けるような集中を見せる...",
+                "手元に鋭い美意識を感じる..."
+            ],
+            paper: [
+                "手が自然に緩んでいる...",
+                "包容力のある雰囲気を醸し出している...",
+                "姿勢が優雅に広がりを見せる..."
+            ]
+        };
+
+        function getAyatoGestureMessage() {
+            const rand = Math.random();
+            
+            // 30%の確率で正確なヒント（仕草通りの手を出す）
+            if (rand < 0.30) {
+                const hands = ['stone', 'scissors', 'paper'];
+                const selectedHand = hands[Math.floor(Math.random() * hands.length)];
+                const gestures = ayatoGestures[selectedHand];
+                const message = gestures[Math.floor(Math.random() * gestures.length)];
+                return { type: 'hint', hand: selectedHand, message: message };
+            }
+            
+            // 15%の確率でフェイク
+            if (rand < 0.45) { // 0.30 + 0.15 = 0.45
+                const hands = ['stone', 'scissors', 'paper'];
+                const fakeHand = hands[Math.floor(Math.random() * hands.length)];
+                const gestures = ayatoGestures[fakeHand];
+                const message = gestures[Math.floor(Math.random() * gestures.length)];
+                return { type: 'fake', hand: fakeHand, message: message };
+            }
+            
+            // 55%の確率で仕草なし
+            return { type: 'none', message: '隙がなく仕草を出さない' };
+        }
+
+        function provoke() {
+            if (gameState.provokeCount <= 0) return;
+            
+            gameState.provokeCount--;
+            document.getElementById('provoke-count').textContent = gameState.provokeCount;
+            
+            // 75%の確率で挑発成功
+            const rand = Math.random();
+            if (rand < 0.75) {
+                // 挑発成功
+                gameState.provokeSuccess = true;
+                addLog('🎯 鈴音は挑発に成功した', 'log-message');
+                
+                // すぐに現在の仕草の意味を表示
+                gameState.revealedGesture = true;
+                const provokeRevealDiv = document.getElementById('provoke-reveal');
+                if (gameState.currentGesture && gameState.currentGesture.type !== 'none') {
+                    const handJapanese = { stone: '石拳', scissors: '剪刀', paper: '布掌' };
+                    provokeRevealDiv.textContent = `${handJapanese[gameState.currentGesture.hand]}を出すような仕草に見える。。。`;
+                    provokeRevealDiv.style.display = 'block';
+                }
+            } else {
+                // 挑発失敗
+                gameState.provokeSuccess = false;
+                addLog('❌ 挑発は失敗した...', 'log-damage');
+                document.getElementById('provoke-reveal').style.display = 'none';
+            }
+            
+            // 挑発回数が0になったらボタンを無効化
+            if (gameState.provokeCount <= 0) {
+                document.querySelector('.provoke-btn').disabled = true;
+            }
+        }
+
+        function updateDisplay() {
+            document.getElementById('round').textContent = gameState.round;
+            document.getElementById('player-hp').textContent = gameState.playerHP;
+            document.getElementById('player-max-hp').textContent = gameState.playerMaxHP;
+            document.getElementById('enemy-hp').textContent = gameState.enemyHP;
+            document.getElementById('player-wins').textContent = gameState.playerWins;
+            document.getElementById('enemy-wins').textContent = gameState.enemyWins;
+            document.getElementById('provoke-count').textContent = gameState.provokeCount;
+            document.getElementById('restart-count').textContent = gameState.restartCount;
+            
+            // 挑発ボタンの状態更新
+            const provokeBtn = document.querySelector('.provoke-btn');
+            if (provokeBtn) {
+                provokeBtn.disabled = gameState.provokeCount <= 0;
+            }
+            
+            // HPバーの更新（元の最大HP100ベースで計算）
+            const playerHpPercent = (gameState.playerHP / 100) * 100;
+            const enemyHpPercent = (gameState.enemyHP / gameConfig.enemy.hp) * 100;
+            
+            document.getElementById('player-hp-bar').style.width = `${Math.max(0, playerHpPercent)}%`;
+            document.getElementById('enemy-hp-bar').style.width = `${Math.max(0, enemyHpPercent)}%`;
+            
+            // 露出レベル表示更新
+            updateExposureDisplay();
+            
+            // 戦闘画面の鈴音キャラクター表示更新
+            updateBattleCharacterDisplay();
+        }
+        
+        function updateExposureDisplay() {
+            const exposureData = exposureLevels[gameState.exposureLevel];
+            console.log('露出レベル更新:', gameState.exposureLevel, exposureData); // デバッグ
+            document.querySelector('.exposure-dots').textContent = exposureData.dots;
+            document.querySelector('.exposure-label').textContent = exposureData.name;
+            document.querySelector('.exposure-desc').textContent = exposureData.description;
+        }
+
+        // 戦闘画面の鈴音キャラクター表示を更新
+        function updateBattleCharacterDisplay() {
+            const battleCharacterEmoji = document.querySelector('.fighter .fighter-emoji');
+            
+            // 露出レベルに応じた絵文字を設定
+            if (battleCharacterEmoji) {
+                battleCharacterEmoji.textContent = clothingLevels[gameState.exposureLevel];
+            }
+        }
+
+        function resetSelection() {
+            document.querySelectorAll('.hand-btn').forEach(btn => {
+                btn.classList.remove('selected');
+            });
+            gameState.selected = null;
+            document.getElementById('selection-status').textContent = '選択: なし';
+            document.getElementById('reveal-btn').disabled = true;
+        }
+
+        function addLog(message, className = '') {
+            const log = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${className}`;
+            entry.innerHTML = message;
+            log.appendChild(entry);
+            
+            // 4つまでの表示制限
+            const entries = log.querySelectorAll('.log-entry');
+            if (entries.length > 4) {
+                log.removeChild(entries[0]);
+            }
+            
+            log.scrollTop = log.scrollHeight;
+        }
+
+        // 服装変化シーン関数
+        function startClothingChangeScene(targetLevel) {
+            currentClothingScene.active = true;
+            currentClothingScene.targetLevel = targetLevel;
+            currentClothingScene.currentStep = 0;
+            
+            const sceneElement = document.getElementById('clothing-change-scene');
+            const suzuneCharacter = document.getElementById('suzune-character');
+            const characterBase = document.querySelector('.character-base');
+            
+            sceneElement.style.display = 'block';
+            
+            // 2D Liveモードを有効化
+            suzuneCharacter.classList.add('live-mode');
+            characterBase.classList.add('live-mode');
+            
+            setTimeout(() => {
+                sceneElement.classList.add('active');
+            }, 50);
+            
+            // 初期状態設定（フォールバック：絵文字）
+            document.querySelector('.character-base').textContent = clothingLevels[gameState.exposureLevel - 1];
+            
+            // クリックイベント追加
+            document.addEventListener('click', handleClothingSceneClick);
+            document.addEventListener('keydown', handleClothingSceneKey);
+        }
+        
+        function handleClothingSceneClick() {
+            if (!currentClothingScene.active) return;
+            progressClothingScene();
+        }
+        
+        function handleClothingSceneKey(e) {
+            if (!currentClothingScene.active) return;
+            if (e.key === ' ' || e.key === 'Enter') {
+                e.preventDefault();
+                progressClothingScene();
+            }
+        }
+        
+        function progressClothingScene() {
+            const character = document.querySelector('.character-base');
+            
+            // 触れられた時のリアクション効果を追加
+            character.classList.add('touched');
+            
+            setTimeout(() => {
+                // 服装変化時の表情変化
+                const targetLevel = currentClothingScene.targetLevel;
+                
+                // 露出レベルに応じた表情変化
+                if (targetLevel >= 2 && targetLevel <= 3) {
+                    character.classList.add('shy');
+                } else if (targetLevel >= 4) {
+                    character.classList.add('embarrassed');
+                }
+                
+                // 服装変化
+                character.textContent = clothingLevels[currentClothingScene.targetLevel];
+                
+                // リアクション効果をクリア
+                setTimeout(() => {
+                    character.classList.remove('touched');
+                }, 600);
+                
+                // シーン終了
+                setTimeout(() => {
+                    endClothingChangeScene();
+                }, 1000);
+            }, 300);
+        }
+        
+        function endClothingChangeScene() {
+            const sceneElement = document.getElementById('clothing-change-scene');
+            const suzuneCharacter = document.getElementById('suzune-character');
+            const character = document.querySelector('.character-base');
+            
+            sceneElement.classList.remove('active');
+            
+            // 2D Liveモードを無効化
+            suzuneCharacter.classList.remove('live-mode');
+            character.classList.remove('live-mode');
+            
+            // 全てのアニメーションクラスをクリア
+            character.classList.remove('touched', 'shy', 'embarrassed');
+            
+            setTimeout(() => {
+                sceneElement.style.display = 'none';
+                currentClothingScene.active = false;
+                
+                // イベントリスナー削除
+                document.removeEventListener('click', handleClothingSceneClick);
+                document.removeEventListener('keydown', handleClothingSceneKey);
+                
+                // 戦闘画面に戻ってからセリフ表示
+                showClothingDialogues();
+            }, 500);
+        }
+        
+        function showClothingDialogues() {
+            const level = currentClothingScene.targetLevel;
+            
+            if (!shownDialogues[level]) {
+                shownDialogues[level] = true;
+                
+                // 鈴音のセリフ
+                setTimeout(() => {
+                    addLog(`鈴音: ${clothingDialogues.suzune[level]}`, 'log-message');
+                    
+                    // 彩人の反応
+                    setTimeout(() => {
+                        addLog(`彩人: ${clothingDialogues.ayato[level]}`, 'log-gesture');
+                        
+                        // 服装変化後に戦闘画面の鈴音の表示を更新
+                        updateBattleCharacterDisplay();
+                    }, 1500);  // 1.5秒に調整
+                }, 800);  // 0.8秒に調整
+            }
+        }
+
+        function restartRead() {
+            if (gameState.restartCount <= 0) return;
+            
+            // 読み直し回数を減らす
+            gameState.restartCount--;
+            document.getElementById('restart-count').textContent = gameState.restartCount;
+            
+            // 読み直し処理：ラウンドは加算しない
+            addLog('💫 鈴音は三手を出さず踏みとどまった', 'log-message');
+            
+            // 選択状態をリセット
+            resetSelection();
+            
+            // 読み直しボタンを無効化（公開後にまた有効になる）
+            document.getElementById('restart-btn').disabled = true;
+            
+            // 読み直し回数が0になったら完全に無効化
+            if (gameState.restartCount <= 0) {
+                document.getElementById('restart-btn').disabled = true;
+            }
+            
+            // 挑発表示をクリア
+            document.getElementById('provoke-reveal').style.display = 'none';
+            gameState.revealedGesture = false;
+            gameState.provokeSuccess = false;
+        }
+
+        function checkGameEnd() {
+            // 5勝条件チェック
+            if (gameState.playerWins >= 5) {
+                setTimeout(() => {
+                    alert('🎉 5勝達成！鈴音の大勝利！');
+                    restartRound();
+                }, 500);
+            } else if (gameState.enemyWins >= 5) {
+                setTimeout(() => {
+                    alert('💔 5敗...彩人の勝利');
+                    restartFromDefeat();
+                }, 500);
+            } else if (gameState.playerHP <= 0) {
+                setTimeout(() => {
+                    alert('HP0！彩人に敗れました...');
+                    restartFromDefeat();
+                }, 500);
+            } else if (gameState.enemyHP <= 0) {
+                setTimeout(() => {
+                    alert('彩人のHP0！この戦闘は鈴音の勝利！');
+                    restartRound();
+                }, 500);
+            }
+        }
+        
+        function restartFromDefeat() {
+            // HP0敗北・5敗時：完全初期化
+            gameState.exposureLevel = 1;  // 露出レベルリセット
+            gameState.playerMaxHP = 100;  // 最大HPリセット  
+            gameState.playerHP = 100;     // HP完全回復
+            gameState.enemyHP = 100;
+            gameState.round = 1;
+            gameState.playerWins = 0;
+            gameState.enemyWins = 0;
+            gameState.draws = 0;
+            gameState.provokeCount = 2;
+            gameState.provokeSuccess = false;
+            gameState.revealedGesture = null;
+            gameState.restartCount = 1;
+            
+            // 退魔録クリア
+            document.getElementById('log').innerHTML = '';
+            addLog('⚔️ 彩人との戦闘開始');
+            
+            // 新しい仕草を生成
+            gameState.currentGesture = getAyatoGestureMessage();
+            document.querySelector('.enemy-message').textContent = gameState.currentGesture.message;
+            
+            // 服装変化セリフフラグをリセット
+            shownDialogues[2] = false;
+            shownDialogues[3] = false;
+            shownDialogues[4] = false;
+            shownDialogues[5] = false;
+            
+            updateDisplay();
+        }
+        
+        function restartRound() {
+            // 5勝・敵HP0時：完全初期化
+            gameState.exposureLevel = 1;  // 露出レベルリセット
+            gameState.playerMaxHP = 100;  // 最大HPリセット
+            gameState.playerHP = 100;     // HP完全回復
+            gameState.enemyHP = 100;
+            gameState.round = 1;
+            gameState.playerWins = 0;
+            gameState.enemyWins = 0;
+            gameState.draws = 0;
+            gameState.provokeCount = 2;
+            gameState.provokeSuccess = false;
+            gameState.revealedGesture = null;
+            gameState.restartCount = 1;
+            
+            // 退魔録クリアして戦闘開始
+            document.getElementById('log').innerHTML = '';
+            addLog('⚔️ 彩人との戦闘開始');
+            
+            // 新しい仕草を生成
+            gameState.currentGesture = getAyatoGestureMessage();
+            document.querySelector('.enemy-message').textContent = gameState.currentGesture.message;
+            
+            // 服装変化セリフフラグをリセット
+            shownDialogues[2] = false;
+            shownDialogues[3] = false;
+            shownDialogues[4] = false;
+            shownDialogues[5] = false;
+            
+            updateDisplay();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            const handBtns = document.querySelectorAll('.hand-btn');
+            if (e.key === '1' && handBtns[0]) handBtns[0].click();
+            if (e.key === '2' && handBtns[1]) handBtns[1].click();
+            if (e.key === '3' && handBtns[2]) handBtns[2].click();
+            if (e.key === ' ') {
+                e.preventDefault();
+                if (!document.getElementById('reveal-btn').disabled) {
+                    battle();
+                }
+            }
+            if (e.key === 'r' || e.key === 'R') {
+                e.preventDefault();
+                if (!document.getElementById('restart-btn').disabled) {
+                    restartRead();
+                }
+            }
+        });
+        
+        // ページ読み込み時の初期化
+        window.addEventListener('load', () => {
+            updateDisplay();
+            resetSelection();
+            
+            // 初期エネミーメッセージを設定して保存
+            gameState.currentGesture = getAyatoGestureMessage();
+            document.querySelector('.enemy-message').textContent = gameState.currentGesture.message;
+        });
+    </script>
+</body>
+</html>

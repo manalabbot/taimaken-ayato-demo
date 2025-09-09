@@ -1,0 +1,11 @@
+level,character_id,clothing_state,image_path,expression,animation_type
+1,suzune,full_outfit,images/suzune_lv1_normal.png,normal,breathing
+1,suzune,full_outfit_shy,images/suzune_lv1_shy.png,shy,trembling
+2,suzune,half_outfit,images/suzune_lv2_normal.png,normal,breathing
+2,suzune,half_outfit_embarrassed,images/suzune_lv2_embarrassed.png,embarrassed,trembling
+3,suzune,light_outfit,images/suzune_lv3_normal.png,normal,breathing
+3,suzune,light_outfit_embarrassed,images/suzune_lv3_embarrassed.png,embarrassed,trembling
+4,suzune,thin_outfit,images/suzune_lv4_normal.png,normal,breathing
+4,suzune,thin_outfit_embarrassed,images/suzune_lv4_embarrassed.png,embarrassed,trembling
+5,suzune,exposed,images/suzune_lv5_normal.png,normal,breathing
+5,suzune,exposed_embarrassed,images/suzune_lv5_embarrassed.png,embarrassed,trembling
